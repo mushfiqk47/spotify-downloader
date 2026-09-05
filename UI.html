@@ -66,15 +66,15 @@
           </div>
         </div>
 
-        <div class="selector-grid">
+        <div class="selector-grid" id="youtube-selectors">
           <div class="field-group">
-            <label class="field-label" for="select-quality">Media Stream</label>
+            <label class="field-label" for="select-quality" id="label-quality">Media Stream</label>
             <div class="select-wrap">
               <select id="select-quality" class="native-select">
-                <option value="best">Best Available (Source)</option>
-                <option value="1080p">1080p 60fps (H.264)</option>
-                <option value="720p">720p Optimized</option>
-                <option value="audio-only">Lossless Audio Only (M4A)</option>
+                <option>Best Available (Source)</option>
+                <option>1080p (FHD)</option>
+                <option>720p (HD)</option>
+                <option>480p (SD)</option>
               </select>
               <svg class="select-chevron" width="10" height="6" viewBox="0 0 10 6">
                 <path d="M1 1L5 5L9 1"/>
@@ -86,9 +86,29 @@
             <label class="field-label" for="select-caption">Caption Envelope</label>
             <div class="select-wrap">
               <select id="select-caption" class="native-select">
-                <option value="srt">SubRip Subtitle (.srt)</option>
-                <option value="vtt">WebVTT (.vtt)</option>
-                <option value="json">Raw Timed Text (.json)</option>
+                <option>SubRip Subtitle (.srt)</option>
+                <option>WebVTT (.vtt)</option>
+                <option>Advanced SubStation (.ass)</option>
+                <option>Timed Lyrics (.lrc)</option>
+              </select>
+              <svg class="select-chevron" width="10" height="6" viewBox="0 0 10 6">
+                <path d="M1 1L5 5L9 1"/>
+              </svg>
+            </div>
+          </div>
+
+          <div class="field-group span-all">
+            <label class="field-label" for="select-file-format">File Format</label>
+            <div class="select-wrap">
+              <select id="select-file-format" class="native-select">
+                <option>Match Source (no conversion)</option>
+                <option>MP4 Video (.mp4)</option>
+                <option>MKV Video (.mkv)</option>
+                <option>MP3 Audio (.mp3)</option>
+                <option>M4A Audio (.m4a)</option>
+                <option>OPUS Audio (.opus)</option>
+                <option>FLAC Audio (.flac)</option>
+                <option>WAV Audio (.wav)</option>
               </select>
               <svg class="select-chevron" width="10" height="6" viewBox="0 0 10 6">
                 <path d="M1 1L5 5L9 1"/>
@@ -97,9 +117,57 @@
           </div>
         </div>
 
-        <div class="config-card">
+        <div class="selector-grid" id="spotify-selectors" hidden style="display: none;">
+          <div class="field-group">
+            <label class="field-label" for="select-format">Audio Format</label>
+            <div class="select-wrap">
+              <select id="select-format" class="native-select">
+                <option>MP3 Audio (.mp3)</option>
+                <option>FLAC Lossless (.flac)</option>
+                <option>OGG Vorbis (.ogg)</option>
+                <option>Opus (.opus)</option>
+                <option>M4A (.m4a)</option>
+                <option>WAV (.wav)</option>
+              </select>
+              <svg class="select-chevron" width="10" height="6" viewBox="0 0 10 6">
+                <path d="M1 1L5 5L9 1"/>
+              </svg>
+            </div>
+          </div>
+
+          <div class="field-group">
+            <label class="field-label" for="select-bitrate">Bitrate</label>
+            <div class="select-wrap">
+              <select id="select-bitrate" class="native-select">
+                <option>Auto (Best Match)</option>
+                <option>320 kbps (High)</option>
+                <option>256 kbps</option>
+                <option>192 kbps</option>
+                <option>128 kbps</option>
+              </select>
+              <svg class="select-chevron" width="10" height="6" viewBox="0 0 10 6">
+                <path d="M1 1L5 5L9 1"/>
+              </svg>
+            </div>
+          </div>
+        </div>
+
+        <div class="config-card" id="spotify-options-card" hidden style="display: none;">
+          <label class="checkbox-item" for="chk-lyrics">
+            <input type="checkbox" id="chk-lyrics" />
+            <span class="checkbox-target">
+              <svg viewBox="0 0 12 12"><path d="M2 6L5 9L10 3"/></svg>
+            </span>
+            <span class="checkbox-meta">
+              <span class="checkbox-title">Synced Lyrics (.lrc)</span>
+              <span class="checkbox-caption">Saves timestamped lyrics next to each track where available.</span>
+            </span>
+          </label>
+        </div>
+
+        <div class="config-card" id="youtube-options-card">
           <label class="checkbox-item" for="chk-transcript">
-            <input type="checkbox" id="chk-transcript" checked />
+            <input type="checkbox" id="chk-transcript" />
             <span class="checkbox-target">
               <svg viewBox="0 0 12 12"><path d="M2 6L5 9L10 3"/></svg>
             </span>
@@ -160,6 +228,7 @@
   <!-- Modular Application Scripts -->
   <script src="js/state.js"></script>
   <script src="js/folderPicker.js"></script>
+  <script src="js/dropdown.js"></script>
   <script src="js/downloader.js"></script>
   <script src="js/updater.js"></script>
   <script src="js/app.js"></script>

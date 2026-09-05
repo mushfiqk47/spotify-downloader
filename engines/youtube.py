@@ -41,16 +41,40 @@ class YouTubeEngine(BaseDownloadEngine):
         "Timed Lyrics (.lrc)": "lrc",
     }
 
+    # Audio Quality menu (shown when File Format is an audio target).
+    # Values are yt-dlp --audio-quality levels (0 = best, 10 = smallest).
+    AUDIO_QUALITY_MAP = {
+        "Best Available": "0",
+        "High Quality": "2",
+        "Medium Quality": "5",
+        "Compact File": "8",
+    }
+
+    # File Format menu. Video entries remux the download into that container
+    # (no re-encode); audio entries extract just the audio track instead.
+    FILE_FORMAT_MAP = {
+        "Match Source (no conversion)": (None, None),
+        "MP4 Video (.mp4)": ("remux", "mp4"),
+        "MKV Video (.mkv)": ("remux", "mkv"),
+        "MP3 Audio (.mp3)": ("audio", "mp3"),
+        "M4A Audio (.m4a)": ("audio", "m4a"),
+        "OPUS Audio (.opus)": ("audio", "opus"),
+        "FLAC Audio (.flac)": ("audio", "flac"),
+        "WAV Audio (.wav)": ("audio", "wav"),
+    }
+
     def build_command(
         self,
         url: str,
         out_dir: str,
         stream_preset: str = "Best Available (Source)",
         caption_env: str = "SubRip Subtitle (.srt)",
-        capture_subs: bool = True,
+        capture_subs: bool = False,
         transcript_only: bool = False,
         lang: str = "en",
         concurrent_fragments: int = 4,
+        file_format: str = "Match Source (no conversion)",
+        audio_quality: str = "Best Available",
         **kwargs,
     ) -> List[str]:
         if is_frozen():
@@ -66,21 +90,30 @@ class YouTubeEngine(BaseDownloadEngine):
         elif shutil.which("deno"):
             cmd.extend(["--js-runtimes", "deno"])
 
-        # 1. Format / Stream selection
+        # 1. Format / Stream selection + File Format menu (audio wins over video)
         preset_val = self.STREAM_PRESETS.get(stream_preset, "bestvideo+bestaudio/best")
-        if preset_val == "mp3":
-            cmd.extend(["-x", "--audio-format", "mp3", "--audio-quality", "0"])
-        elif preset_val == "m4a":
-            cmd.extend(["-x", "--audio-format", "m4a", "--audio-quality", "0"])
+        kind, codec = self.FILE_FORMAT_MAP.get(file_format, (None, None))
+        preset_is_audio = preset_val in ("mp3", "m4a")
+        ffmpeg = find_ffmpeg()
+
+        if kind == "audio" or (kind is None and preset_is_audio):
+            # Extract just the audio track (best audio source) at the chosen quality.
+            audio_codec = codec or preset_val
+            aq = self.AUDIO_QUALITY_MAP.get(audio_quality, "0")
+            cmd.extend(["-f", "bestaudio/best", "-x",
+                        "--audio-format", audio_codec, "--audio-quality", aq])
+        elif preset_is_audio:
+            # Legacy audio-only presets with Match Source.
+            cmd.extend(["-x", "--audio-format", preset_val, "--audio-quality", "0"])
         else:
             cmd.extend(["-f", preset_val])
-
-        # 2. Performance: Multi-connection concurrent fragment downloading
-        if concurrent_fragments > 1 and preset_val not in ("mp3", "m4a"):
-            cmd.extend(["--concurrent-fragments", str(concurrent_fragments)])
+            # 2. Performance: Multi-connection concurrent fragment downloading
+            if concurrent_fragments > 1:
+                cmd.extend(["--concurrent-fragments", str(concurrent_fragments)])
+            if kind == "remux" and ffmpeg:
+                cmd.extend(["--remux-video", codec])
 
         # 3. FFmpeg integration
-        ffmpeg = find_ffmpeg()
         if ffmpeg:
             cmd.extend(["--ffmpeg-location", ffmpeg])
 

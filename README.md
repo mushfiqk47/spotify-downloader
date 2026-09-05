@@ -135,7 +135,11 @@ chmod +x setup.sh
 # or build a specific target:
 ./build.sh appimage
 ./build.sh deb
+./build.sh tar.gz
+# or with Makefile:
+make dist-linux
 ```
+*Generates Linux standalone distributions in `dist-installer/` (`StreamRip-Core-1.0.0-x64.tar.gz`, `.deb`, `.AppImage`).*
 
 ---
 
@@ -151,13 +155,17 @@ chmod +x setup.sh
 #### 2. Launch
 ```bash
 ./run.sh
+# or launch in default browser:
+./run.sh --browser
 ```
 
 #### 3. Build macOS Bundles (.dmg, .zip)
 ```bash
 ./build.sh
+# or with Makefile:
+make dist-mac
 ```
-*Generates `.dmg` and `.zip` installers inside `dist-installer/`.*
+*Generates `.dmg` and `.zip` installers inside `dist-installer/` with bundled Python runtime, FFmpeg, and gettext locale catalogs.*
 
 ---
 
@@ -178,8 +186,10 @@ python main.py
 #### 3. Packaging Windows Installer (.exe)
 ```cmd
 npm run dist
+# or with Makefile:
+make dist-win
 ```
-*Generates `StreamRip-Core-Setup-1.0.0.exe` (~364 MB) in `dist-installer/`.*
+*Generates `StreamRip-Core-Setup-1.0.0.exe` (~158 MB lean onedir NSIS installer) in `dist-installer/`.*
 
 ---
 
@@ -187,15 +197,15 @@ npm run dist
 
 If `make` is installed on your system, you can use these shorthand targets:
 ```bash
-make setup          # Install dependencies on current OS
+make setup          # Install dependencies on current OS (apt/pacman/dnf/brew)
 make run            # Launch desktop application
 make run-browser    # Run with default web browser
 make build          # Build standalone binary and package app
 make build-backend  # PyInstaller backend compilation
-make dist-linux     # Build AppImage, deb, and tar.gz
-make dist-mac       # Build dmg and zip
+make dist-linux     # Build Linux packages (AppImage, deb, tar.gz)
+make dist-mac       # Build macOS packages (dmg, zip)
 make dist-win       # Build Windows setup exe
-make test           # Verify Python syntax and modules
+make test           # Verify Python syntax, modules, and routes
 make clean          # Remove build artifacts and caches
 ```
 

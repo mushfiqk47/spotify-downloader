@@ -25,12 +25,19 @@ OS="$(uname -s)"
 # ------------------------------------------------------------------------------
 # 1. Environment & Virtualenv Detection
 # ------------------------------------------------------------------------------
-if [ -f "$SCRIPT_DIR/.venv/bin/activate" ]; then
+# Prefer a clean build venv (only requirements.txt: no torch/polars/botocore
+# from a dirty dev env leaking into the exe). Create with `make venv-build`.
+if [ -f "$SCRIPT_DIR/.venv-build/bin/activate" ]; then
+    echo -e "${BOLD}1. Activating clean build environment (.venv-build)...${NC}"
+    # shellcheck disable=SC1091
+    source "$SCRIPT_DIR/.venv-build/bin/activate"
+elif [ -f "$SCRIPT_DIR/.venv/bin/activate" ]; then
     echo -e "${BOLD}1. Activating Python virtual environment (.venv)...${NC}"
     # shellcheck disable=SC1091
     source "$SCRIPT_DIR/.venv/bin/activate"
 else
-    echo -e "${YELLOW}[!] .venv not found; using active Python environment.${NC}"
+    echo -e "${YELLOW}[!] No venv found; using active Python environment.${NC}"
+    echo -e "${YELLOW}    Tip: 'make venv-build' gives a much smaller exe.${NC}"
 fi
 
 PY_BIN="$(command -v python3 || command -v python)"
@@ -50,26 +57,28 @@ fi
 echo -e "\n${BOLD}2. Compiling Python Backend Executable with PyInstaller...${NC}"
 "$PY_BIN" -m PyInstaller backend.spec --noconfirm --distpath dist-backend
 
-# Backend binary name differs per OS (Windows adds .exe)
-BACKEND_BIN="$SCRIPT_DIR/dist-backend/streamrip-backend"
-if [ "$OS" != "Darwin" ] && [ "$OS" != "Linux" ]; then
-    BACKEND_BIN="$SCRIPT_DIR/dist-backend/streamrip-backend.exe"
-fi
-if [ ! -f "$BACKEND_BIN" ]; then
-    # fallback: accept either name on any OS
-    if [ -f "$SCRIPT_DIR/dist-backend/streamrip-backend.exe" ]; then
-        BACKEND_BIN="$SCRIPT_DIR/dist-backend/streamrip-backend.exe"
-    elif [ -f "$SCRIPT_DIR/dist-backend/streamrip-backend" ]; then
-        BACKEND_BIN="$SCRIPT_DIR/dist-backend/streamrip-backend"
-    fi
-fi
-if [ -f "$BACKEND_BIN" ]; then
+# Backend is onedir: dist-backend/streamrip-backend/streamrip-backend[.exe]
+# (legacy onefile single-file layout accepted as fallback)
+BACKEND_BIN=""
+for cand in \
+    "$SCRIPT_DIR/dist-backend/streamrip-backend/streamrip-backend" \
+    "$SCRIPT_DIR/dist-backend/streamrip-backend/streamrip-backend.exe" \
+    "$SCRIPT_DIR/dist-backend/streamrip-backend" \
+    "$SCRIPT_DIR/dist-backend/streamrip-backend.exe"; do
+    if [ -f "$cand" ]; then BACKEND_BIN="$cand"; break; fi
+done
+if [ -n "$BACKEND_BIN" ]; then
     chmod +x "$BACKEND_BIN" 2>/dev/null || true
     chmod +x "$SCRIPT_DIR/dist-backend/ffmpeg" 2>/dev/null || true
+    find "$SCRIPT_DIR/dist-backend" -type f ! -name "*.*" -exec chmod +x {} + 2>/dev/null || true
     echo -e "${GREEN}[OK] Standalone backend built:${NC} $BACKEND_BIN"
     echo -e "   Verifying bundled runtime..."
     "$PY_BIN" -c "from PyInstaller.utils.hooks import collect_data_files; d=collect_data_files('pykakasi'); assert any('kanwadict4' in a for a,_ in d); print('   [OK] pykakasi data')"
+    "$PY_BIN" -c "from PyInstaller.utils.hooks import collect_data_files; d=collect_data_files('ytmusicapi'); assert any('base.mo' in a for a,_ in d); print('   [OK] ytmusicapi locales')"
+    "$PY_BIN" -c "import pymongo, spotapi, SpotipyFree, ytmusicapi; print('   [OK] spotify providers imported')"
     "$PY_BIN" -c "import imageio_ffmpeg; print('   [OK] ffmpeg:', imageio_ffmpeg.get_ffmpeg_exe())"
+    "$BACKEND_BIN" --engine-yt-dlp --version > /dev/null && echo "   [OK] yt-dlp engine check"
+    "$BACKEND_BIN" --engine-spotdl --help > /dev/null && echo "   [OK] spotdl engine check"
 else
     echo -e "${RED}[ERROR] Backend binary build failed.${NC}"
     exit 1

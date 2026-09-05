@@ -7,6 +7,7 @@ API:
   GET  /api/health              -> {ok: True} (lightweight Electron readiness probe)
   GET  /api/config              -> defaults + ffmpeg status
   GET  /api/browse?path=...     -> folder listing for Browse button
+  POST /api/browse-native       -> real OS folder window (browser mode too)
   GET  /api/check-updates       -> {updates: {name: [current, latest]}}
   POST /api/update              -> {job_id} (pip upgrade in background)
   POST /api/download            -> {job_id} (yt-dlp / spotdl in background)
@@ -16,12 +17,23 @@ API:
 from __future__ import annotations
 
 import os
+import shutil
 import subprocess
 import sys
 import threading
 import time
 import uuid
 from pathlib import Path
+import gettext as _gettext
+
+# Ensure gettext never crashes with FileNotFoundError if a locale domain is missing (e.g. ytmusicapi 'base' in frozen env)
+_orig_gettext_translation = _gettext.translation
+def _safe_gettext_translation(domain, localedir=None, languages=None, class_=None, fallback=False, codeset=None):
+    try:
+        return _orig_gettext_translation(domain, localedir=localedir, languages=languages, class_=class_, fallback=fallback)
+    except FileNotFoundError:
+        return _orig_gettext_translation(domain, localedir=localedir, languages=languages, class_=class_, fallback=True)
+_gettext.translation = _safe_gettext_translation
 
 from flask import Flask, jsonify, request, send_from_directory
 
@@ -38,6 +50,12 @@ def _base_dir() -> Path:
     meipass = getattr(sys, "_MEIPASS", None)
     if meipass:
         return Path(meipass)
+    if getattr(sys, "frozen", False):
+        # onedir: datas (UI.html, css/, js/) live in _internal/ next to the exe.
+        exe_dir = Path(sys.executable).resolve().parent
+        if (exe_dir / "_internal" / "UI.html").is_file():
+            return exe_dir / "_internal"
+        return exe_dir
     return Path(__file__).resolve().parent
 
 
@@ -87,23 +105,144 @@ def serve_logo():
     return send_from_directory(str(BASE_DIR), "Logo.svg")
 
 
+_PREF_KEYS = ("mode", "youtube_out", "spotify_out", "yt_stream", "yt_caption_env",
+               "yt_capture_subs", "yt_transcript_only", "yt_lang", "yt_file_format",
+               "yt_audio_quality", "sp_stream", "sp_bitrate", "sp_generate_lrc",
+               "sp_keep_archives")
+
+
+def _config_payload() -> dict:
+    return {k: settings.get(k) for k in _PREF_KEYS}
+
+
 @app.get("/api/config")
 def get_config():
-    default_yt = str(Path.home() / ("Movies/YouTubeDownloads" if sys.platform == "darwin" else "Videos/YouTubeDownloads"))
-    default_sp = str(Path.home() / "Music/SpotifyDownloads")
+    # Belt-and-braces: sanitize on every read so a stale settings file
+    # from another machine can never leak another user's home dir to this UI.
+    try:
+        settings.sanitize()
+    except Exception:
+        pass
     try:
         from core.ffmpeg import find_ffmpeg as _find_ffmpeg
         ffmpeg = _find_ffmpeg()
     except Exception:
         ffmpeg = None
     return jsonify({
-        "youtube_out": settings.get("youtube_out") or default_yt,
-        "spotify_out": settings.get("spotify_out") or default_sp,
+        **_config_payload(),
         "platform": sys.platform,
         "frozen": is_frozen(),
         "ffmpeg": ffmpeg,
         "ffmpeg_ok": bool(ffmpeg),
     })
+
+
+@app.post("/api/config")
+def save_config():
+    """Persist this user's own choices (out folders, mode). Only whitelisted keys."""
+    body = request.get_json(silent=True) or {}
+    allowed = set(_PREF_KEYS)
+    patch: dict = {}
+    for key in allowed:
+        if key not in body:
+            continue
+        value = body[key]
+        if key in ("youtube_out", "spotify_out"):
+            if not isinstance(value, str) or not value.strip():
+                continue
+            value = os.path.expandvars(os.path.expanduser(value.strip()))
+            try:
+                if not Path(value).is_absolute():
+                    continue
+            except Exception:
+                continue
+        if key == "mode" and value not in ("youtube", "spotify"):
+            continue
+        patch[key] = value
+    if patch:
+        settings.set_many(patch)
+        try:
+            settings.sanitize()
+        except Exception:
+            pass
+        settings.save()
+    return jsonify({
+        "ok": True,
+        **_config_payload(),
+    })
+
+
+def _native_dialog_available() -> bool:
+    """True when this machine can pop a real OS folder window."""
+    if sys.platform in ("win32", "darwin"):
+        return True  # PowerShell FolderBrowserDialog / osascript — always present
+    return bool(shutil.which("zenity") or shutil.which("kdialog"))
+
+
+def _native_dialog(start: str | None) -> str | None:
+    """Open the real OS folder window on THIS machine and return the picked
+    absolute path, or None on cancel/failure. Backend and browser run on the
+    same box, so the window appears on the user's screen. No tkinter needed
+    (it is excluded from the frozen build)."""
+    if sys.platform == "win32":
+        ps = (
+            "Add-Type -AssemblyName System.Windows.Forms;"
+            "$d = New-Object System.Windows.Forms.FolderBrowserDialog;"
+            "$d.Description = 'Choose export folder';"
+            "$d.ShowNewFolderButton = $true;"
+        )
+        env = dict(os.environ)
+        if start:
+            env["STREAMRIP_BROWSE_START"] = start
+            ps += "$d.SelectedPath = $env:STREAMRIP_BROWSE_START;"
+        ps += "if ($d.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) { $d.SelectedPath }"
+        try:
+            # NOTE: no CREATE_NO_WINDOW here — we WANT the window to show.
+            proc = subprocess.run(
+                ["powershell", "-sta", "-noprofile", "-noninteractive", "-command", ps],
+                capture_output=True, text=True, timeout=180, env=env)
+        except Exception:
+            return None
+        return (proc.stdout or "").strip() or None
+    if sys.platform == "darwin":
+        try:
+            proc = subprocess.run(
+                ["osascript", "-e", 'POSIX path of (choose folder with prompt "Choose export folder")'],
+                capture_output=True, text=True, timeout=180)
+        except Exception:
+            return None
+        return (proc.stdout or "").strip() or None
+    for cmd in (["zenity", "--file-selection", "--directory", "--title=Choose export folder"],
+                ["kdialog", "--getexistingdirectory", os.path.expanduser("~")]):
+        try:
+            proc = subprocess.run(cmd, capture_output=True, text=True, timeout=180)
+        except FileNotFoundError:
+            continue
+        except Exception:
+            return None
+        out = (proc.stdout or "").strip()
+        return out or None
+    return None
+
+
+@app.post("/api/browse-native")
+def browse_native():
+    """Open the real OS folder window. Body: {start?: existing dir}.
+    -> {picked: str|None, cancelled: bool, available: bool}"""
+    if not _native_dialog_available():
+        return jsonify({"picked": None, "cancelled": False, "available": False})
+    body = request.get_json(silent=True) or {}
+    start = (body.get("start") or "").strip() or None
+    if start:
+        try:
+            if not Path(start).exists():
+                start = None
+        except Exception:
+            start = None
+    picked = _native_dialog(start)
+    if not picked:
+        return jsonify({"picked": None, "cancelled": True, "available": True})
+    return jsonify({"picked": picked, "cancelled": False, "available": True})
 
 
 def _list_drives():
@@ -218,9 +357,11 @@ def start_download():
             url=url, out_dir=out_dir,
             stream_preset=body.get("yt_stream") or settings.get("yt_stream"),
             caption_env=body.get("yt_caption_env") or settings.get("yt_caption_env"),
-            capture_subs=bool(body.get("yt_capture_subs", settings.get("yt_capture_subs", True))),
+            capture_subs=bool(body.get("yt_capture_subs", settings.get("yt_capture_subs", False))),
             transcript_only=bool(body.get("yt_transcript_only", False)),
             lang=(body.get("yt_lang") or settings.get("yt_lang", "en")),
+            file_format=(body.get("yt_file_format") or settings.get("yt_file_format")),
+            audio_quality=(body.get("yt_audio_quality") or settings.get("yt_audio_quality", "Best Available")),
         )
     else:
         engine = sp_engine
@@ -228,7 +369,7 @@ def start_download():
             url=url, out_dir=out_dir,
             stream_preset=body.get("sp_stream") or settings.get("sp_stream"),
             bitrate=body.get("sp_bitrate") or settings.get("sp_bitrate"),
-            generate_lrc=bool(body.get("sp_generate_lrc", settings.get("sp_generate_lrc", True))),
+            generate_lrc=bool(body.get("sp_generate_lrc", settings.get("sp_generate_lrc", False))),
         )
 
     # block parallel downloads on the shared engine runner: use a fresh runner per job

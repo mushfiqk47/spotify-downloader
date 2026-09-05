@@ -31,7 +31,9 @@ def _bundled_candidates() -> list[Path]:
     # Frozen exe dir (<resources>/backend/ or dist-backend/)
     if getattr(sys, "frozen", False):
         try:
-            dirs.append(Path(sys.executable).resolve().parent)
+            exe_dir = Path(sys.executable).resolve().parent
+            dirs.append(exe_dir)
+            dirs.append(exe_dir / "_internal")  # onedir datas dir
         except Exception:
             pass
     # Dev / repo layouts

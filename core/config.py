@@ -37,23 +37,68 @@ def _writable_config_path() -> Path:
     return Path(__file__).resolve().parent.parent / "settings.json"
 
 
+def default_youtube_out() -> str:
+    base = "Movies" if sys.platform == "darwin" else "Videos"
+    return str(Path.home() / base / "YouTubeDownloads")
+
+
+def default_spotify_out() -> str:
+    return str(Path.home() / "Music" / "SpotifyDownloads")
+
+
+def default_settings() -> Dict[str, Any]:
+    # Computed fresh on every call so each OS user gets THEIR OWN home
+    # dir, never another machine's absolute path baked in at import time.
+    return {
+        "mode": "youtube",
+        "youtube_out": default_youtube_out(),
+        "spotify_out": default_spotify_out(),
+        "yt_stream": "Best Available (Source)",
+        "yt_caption_env": "SubRip Subtitle (.srt)",
+        "yt_capture_subs": False,
+        "yt_transcript_only": False,
+        "yt_lang": "en",
+        "yt_file_format": "Match Source (no conversion)",
+        "yt_audio_quality": "Best Available",
+        "sp_stream": "MP3 Audio (.mp3)",
+        "sp_bitrate": "Auto (Best Match)",
+        "sp_generate_lrc": False,
+        "sp_keep_archives": False,
+    }
+
+
+def _sanitize_out_dir(value: Any, default: str) -> str:
+    """Drop stale paths left by another machine/user (e.g. a shipped
+    settings.json containing ``C:\\Users\\SomeoneElse\\...``).
+
+    Keep the stored value when it exists on disk (user-picked folders
+    always exist because they come from a folder dialog) or when it sits
+    under the CURRENT user's home (may be created on first download).
+    Anything else falls back to this user's default.
+    """
+    if not isinstance(value, str) or not value.strip():
+        return default
+    cleaned = os.path.expandvars(os.path.expanduser(value.strip()))
+    try:
+        p = Path(cleaned)
+    except Exception:
+        return default
+    try:
+        if p.exists():
+            return str(p)
+    except OSError:
+        return default
+    try:
+        p.relative_to(Path.home())
+        return str(p)
+    except Exception:
+        return default
+
+
 class SettingsManager:
     """Thread-safe settings manager for persisting user choices between sessions."""
 
-    DEFAULT_SETTINGS = {
-        "mode": "youtube",
-        "youtube_out": str(Path.home() / "Videos" / "YouTubeDownloads"),
-        "spotify_out": str(Path.home() / "Music" / "SpotifyDownloads"),
-        "yt_stream": "Best Available (Source)",
-        "yt_caption_env": "SubRip Subtitle (.srt)",
-        "yt_capture_subs": True,
-        "yt_transcript_only": False,
-        "yt_lang": "en",
-        "sp_stream": "MP3 Audio (.mp3)",
-        "sp_bitrate": "Auto (Best Match)",
-        "sp_generate_lrc": True,
-        "sp_keep_archives": False,
-    }
+    DEFAULT_SETTINGS = default_settings()
 
     def __init__(self, config_file: Optional[str] = None):
         if config_file:
@@ -61,7 +106,7 @@ class SettingsManager:
         else:
             self.config_path = _writable_config_path()
 
-        self.data: Dict[str, Any] = dict(self.DEFAULT_SETTINGS)
+        self.data: Dict[str, Any] = default_settings()
         self.load()
 
     def load(self):
@@ -74,6 +119,15 @@ class SettingsManager:
                         self.data.update(loaded)
             except Exception:
                 pass
+        self.sanitize()
+
+    def sanitize(self):
+        """Reset out-dirs that belong to another user/machine to this user's defaults."""
+        defaults = default_settings()
+        for key in ("youtube_out", "spotify_out"):
+            self.data[key] = _sanitize_out_dir(self.data.get(key), defaults[key])
+        if self.data.get("mode") not in ("youtube", "spotify"):
+            self.data["mode"] = defaults["mode"]
 
     def save(self):
         """Persists current configuration to disk safely."""

@@ -43,7 +43,7 @@ class SpotifyEngine(BaseDownloadEngine):
         out_dir: str,
         stream_preset: str = "MP3 Audio (.mp3)",
         bitrate: str = "Auto (Best Match)",
-        generate_lrc: bool = True,
+        generate_lrc: bool = False,
         threads: int = 4,
         **kwargs,
     ) -> List[str]:

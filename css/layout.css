@@ -1,15 +1,16 @@
 .app-card {
   width: 100%;
-  max-width: 980px;
-  max-height: calc(100vh - 80px);
+  max-width: none;
+  height: 100vh;
+  max-height: none;
   background: var(--color-white);
-  border-radius: var(--radius-cards);
-  box-shadow: var(--shadow-card);
-  border: 1px solid var(--color-silver);
+  border-radius: 0;
+  box-shadow: none;
+  border: none;
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  flex-shrink: 0;
+  flex: 1;
 }
 
 .window-header {
@@ -118,8 +119,14 @@
 }
 
 @media (max-width: 800px) {
+  body {
+    height: auto;
+    min-height: 100vh;
+    overflow-y: auto;
+  }
   .app-card {
-    max-height: none;
+    height: auto;
+    min-height: 100vh;
   }
   .app-layout {
     grid-template-columns: 1fr;
@@ -128,5 +135,6 @@
   .workspace-pane {
     border-right: none;
     border-bottom: 1px solid var(--color-silver);
+    overflow: visible;
   }
 }

@@ -26,6 +26,11 @@ setup:
 	@chmod +x setup.sh run.sh build.sh 2>/dev/null || true
 	@./setup.sh
 
+venv-build:
+	python3 -m venv .venv-build || python -m venv .venv-build
+	. .venv-build/bin/activate && pip install --upgrade pip --quiet && pip install -r requirements.txt --quiet
+	@echo "[OK] Clean build env ready (.venv-build). build.sh will use it automatically."
+
 run:
 	@chmod +x run.sh 2>/dev/null || true
 	@./run.sh
@@ -40,7 +45,7 @@ build:
 
 build-backend:
 	$(PYTHON) -m PyInstaller backend.spec --noconfirm --distpath dist-backend
-	@chmod +x dist-backend/streamrip-backend 2>/dev/null || true
+	@chmod +x dist-backend/streamrip-backend/streamrip-backend 2>/dev/null || true
 	@chmod +x dist-backend/ffmpeg 2>/dev/null || true
 
 dist-linux: build-backend

@@ -15,6 +15,7 @@ async function handleBrowseClick() {
       if (picked) {
         if (elDest) elDest.value = picked;
         appendLog(`Export folder set: ${picked}`);
+        persistDestFolder();
       }
       return;
     }
@@ -22,7 +23,26 @@ async function handleBrowseClick() {
     /* fall through to in-browser picker */
   }
 
-  // 2) Browser mode: in-page folder browser backed by /api/browse.
+  // 2) Real OS folder window via the backend (same machine, so the Windows
+  //    folder window pops on the user's screen even in browser mode).
+  try {
+    const res = await fetch('/api/browse-native', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ start: currentVal }),
+    });
+    const data = await res.json();
+    if (data && data.picked) {
+      if (elDest) elDest.value = data.picked;
+      appendLog(`Export folder set: ${data.picked}`);
+      persistDestFolder();
+      return;
+    }
+    if (data && data.available) return; // user pressed Cancel — don't pop anything else
+  } catch (e) { /* no native dialog — fall through */ }
+
+  // 3) Last resort: built-in picker (e.g. headless Linux with no zenity).
+  appendLog('System folder window unavailable — using built-in picker.', 'entry-blue');
   openFolderPicker(currentVal);
 }
 
@@ -123,8 +143,14 @@ function initFolderPicker() {
       if (folderCurrent && folderCurrent !== '__drives__' && elDest) {
         elDest.value = folderCurrent;
         appendLog(`Export folder set: ${folderCurrent}`);
+        persistDestFolder();
       }
       closeFolderPicker();
     });
+  }
+
+  // Manual paste/type into the destination field is also remembered.
+  if (elDest) {
+    elDest.addEventListener('change', persistDestFolder);
   }
 }

@@ -21,13 +21,39 @@ function findRcedit() {
 
 exports.default = async function afterPack(context) {
   // Clean-OS: backend (+ bundled ffmpeg sidecar) must stay executable
-  // inside the packaged app on Linux/macOS.
+  // inside the packaged app on Linux/macOS (onefile exe or onedir folder).
   try {
-    const resDir = path.join(context.appOutDir, 'resources', 'backend');
-    if (fs.existsSync(resDir)) {
-      for (const n of fs.readdirSync(resDir)) {
-        if (n === 'streamrip-backend' || n === 'ffmpeg' || n.endsWith('.bin')) {
-          try { fs.chmodSync(path.join(resDir, n), 0o755); } catch { /* ignore */ }
+    const chmod = (p) => { try { fs.chmodSync(p, 0o755); } catch { /* ignore */ } };
+    const resCandidates = [
+      path.join(context.appOutDir, 'resources', 'backend'),
+      path.join(context.appOutDir, `${context.packager.appInfo.productFilename}.app`, 'Contents', 'Resources', 'backend'),
+      path.join(context.appOutDir, `${context.packager.appInfo.productName}.app`, 'Contents', 'Resources', 'backend'),
+    ];
+
+    for (const resDir of resCandidates) {
+      if (!fs.existsSync(resDir)) continue;
+      for (const n of ['streamrip-backend', 'streamrip-backend.exe', 'ffmpeg', 'ffmpeg.exe']) {
+        const p = path.join(resDir, n);
+        if (fs.existsSync(p) && fs.statSync(p).isFile()) chmod(p);
+      }
+      const oneDir = path.join(resDir, 'streamrip-backend');
+      if (fs.existsSync(oneDir) && fs.statSync(oneDir).isDirectory()) {
+        for (const n of fs.readdirSync(oneDir)) {
+          const p = path.join(oneDir, n);
+          try {
+            const st = fs.statSync(p);
+            if (st.isFile()) {
+              if (
+                n.startsWith('streamrip-backend') ||
+                n.endsWith('.so') ||
+                n.endsWith('.dylib') ||
+                n === 'ffmpeg' ||
+                !n.includes('.')
+              ) {
+                chmod(p);
+              }
+            }
+          } catch { /* ignore */ }
         }
       }
     }

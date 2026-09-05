@@ -14,10 +14,15 @@ function backendCandidates() {
   const list = [];
   if (app.isPackaged) {
     // electron-builder extraResources -> <resources>/backend/
+    // onedir layout first (fast start, no %TEMP% extract), legacy onefile fallback.
+    list.push(path.join(process.resourcesPath, 'backend', 'streamrip-backend', 'streamrip-backend.exe'));
+    list.push(path.join(process.resourcesPath, 'backend', 'streamrip-backend', 'streamrip-backend'));
     list.push(path.join(process.resourcesPath, 'backend', 'streamrip-backend.exe'));
     list.push(path.join(process.resourcesPath, 'backend', 'streamrip-backend'));
   }
   // unpacked / dir builds + local dev after `npm run build:backend`
+  list.push(path.join(__dirname, '..', 'dist-backend', 'streamrip-backend', 'streamrip-backend.exe'));
+  list.push(path.join(__dirname, '..', 'dist-backend', 'streamrip-backend', 'streamrip-backend'));
   list.push(path.join(__dirname, '..', 'dist-backend', 'streamrip-backend.exe'));
   list.push(path.join(__dirname, '..', 'dist-backend', 'streamrip-backend'));
   return list;
@@ -98,7 +103,7 @@ async function createWindow() {
     minHeight: 620,
     title: 'StreamRip Core',
     autoHideMenuBar: true,
-    backgroundColor: '#f4f4f4',
+    backgroundColor: '#ffffff',
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,

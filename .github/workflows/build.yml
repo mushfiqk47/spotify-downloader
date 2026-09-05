@@ -73,11 +73,29 @@ jobs:
       - name: Build Standalone Backend with PyInstaller
         run: python -m PyInstaller backend.spec --noconfirm --distpath dist-backend
 
-      - name: Smoke-test backend (pykakasi data + health + browse)
+      - name: Smoke-test backend (pykakasi/ytmusicapi data + health + browse)
         run: |
           python -c "from PyInstaller.utils.hooks import collect_data_files; d=collect_data_files('pykakasi'); assert any('kanwadict4' in a for a,_ in d), 'pykakasi data missing'; print(f'[OK] pykakasi bundled: {len(d)} files')"
+          python -c "from PyInstaller.utils.hooks import collect_data_files; d=collect_data_files('ytmusicapi'); assert any('base.mo' in a for a,_ in d), 'ytmusicapi locales missing'; print(f'[OK] ytmusicapi locales bundled: {len(d)} files')"
+          python -c "import pymongo, spotapi, SpotipyFree, ytmusicapi; print('[OK] all spotify extraction libraries import cleanly')"
           python -m py_compile server.py main.py app_pipeline.py core/*.py engines/*.py
           python -c "import sys; sys.path.insert(0,'.'); from server import app; c=app.test_client(); assert c.get('/api/health').status_code==200; assert c.get('/api/browse?path=__drives__').status_code==200; print('[OK] backend routes')"
+        shell: bash
+
+      - name: Smoke-test frozen backend (imports survived excludes + boots)
+        run: |
+          if [ -f "dist-backend/streamrip-backend/streamrip-backend.exe" ]; then BIN="dist-backend/streamrip-backend/streamrip-backend.exe"; else BIN="dist-backend/streamrip-backend/streamrip-backend"; fi
+          echo "BIN=$BIN"; ls -la "$BIN"
+          "$BIN" --engine-yt-dlp --version
+          "$BIN" --engine-spotdl --help > /dev/null
+          "$BIN" --engine-spotdl url "https://open.spotify.com/track/4cOdK2wGLETKBW3PvgPWqT" > /dev/null 2>&1 || true
+          echo "[OK] frozen engines import (yt-dlp + spotdl/pykakasi/ytmusicapi)"
+          (STREAMRIP_PORT=5059 "$BIN" > backend-ci.log 2>&1 & echo $! > backend.pid)
+          for i in $(seq 1 24); do curl -sf http://127.0.0.1:5059/api/health && break || sleep 5; done
+          curl -sf http://127.0.0.1:5059/api/health
+          curl -sf http://127.0.0.1:5059/api/config | grep -o '"ffmpeg_ok":true'
+          kill "$(cat backend.pid)" 2>/dev/null || true
+          echo "[OK] frozen backend boots with bundled ffmpeg"
         shell: bash
 
       - name: Build Desktop Application (Linux)

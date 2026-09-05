@@ -65,15 +65,24 @@ async function handleDownloadClick() {
   appendLog(`Target verified: ${rawUrl}`);
 
   try {
+    const elSelectFormat = document.getElementById('select-format');
+    const elSelectBitrate = document.getElementById('select-bitrate');
+    const elChkLyrics = document.getElementById('chk-lyrics');
+    const elSelectFileFormat = document.getElementById('select-file-format');
     const payload = {
       url: rawUrl,
       mode: AppState.mode,
       out_dir: elDest ? elDest.value.trim() : '',
       yt_stream: elSelectQuality ? elSelectQuality.options[elSelectQuality.selectedIndex]?.text : 'Best Available (Source)',
       yt_caption_env: elSelectCaption ? elSelectCaption.options[elSelectCaption.selectedIndex]?.text : 'SubRip Subtitle (.srt)',
-      yt_capture_subs: elChkTranscript ? elChkTranscript.checked : true,
+      yt_capture_subs: elChkTranscript ? elChkTranscript.checked : false,
       yt_transcript_only: false,
       yt_lang: 'en',
+      yt_file_format: elSelectFileFormat ? elSelectFileFormat.options[elSelectFileFormat.selectedIndex]?.text : 'Match Source (no conversion)',
+      yt_audio_quality: elSelectQuality ? elSelectQuality.options[elSelectQuality.selectedIndex]?.text : 'Best Available',
+      sp_stream: elSelectFormat ? elSelectFormat.options[elSelectFormat.selectedIndex]?.text : 'MP3 Audio (.mp3)',
+      sp_bitrate: elSelectBitrate ? elSelectBitrate.options[elSelectBitrate.selectedIndex]?.text : 'Auto (Best Match)',
+      sp_generate_lrc: elChkLyrics ? elChkLyrics.checked : false,
     };
 
     const res = await fetch('/api/download', {

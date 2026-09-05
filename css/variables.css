@@ -1,7 +1,7 @@
 :root {
   /* Cal.com Color Tokens */
   --color-ink: #101010;
-  --color-action-blue: #0099ff;
+  --color-action-blue: #041928;
   --color-white: #ffffff;
   --color-paper: #f4f4f4;
   --color-graphite: #242424;
@@ -34,14 +34,20 @@
 }
 
 body {
-  background-color: var(--color-paper);
+  background-color: var(--color-white);
   color: var(--color-graphite);
   font-family: var(--font-body);
   font-weight: 300;
   letter-spacing: -0.19px;
-  min-height: 100vh;
+  height: 100vh;
+  margin: 0;
+  padding: 0;
   display: flex;
-  justify-content: center;
-  align-items: center;
-  padding: 40px 24px;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* Universal rule: elements with [hidden] must never be displayed regardless of display property */
+[hidden] {
+  display: none !important;
 }

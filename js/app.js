@@ -63,6 +63,15 @@ document.addEventListener('DOMContentLoaded', () => {
   // Initialize modular folder picker
   initFolderPicker();
 
+  // Persist control changes + keep quality list in sync with file format
+  initControlSync();
+
+  // Initialize custom themed dropdowns
+  initCustomDropdowns();
+
+  // Synchronize initial mode controls visibility
+  updateModeVisibility(AppState.mode);
+
   // Load platform paths and perform background update check
   loadConfig();
   refreshUpdates(true);
