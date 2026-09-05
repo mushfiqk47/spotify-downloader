@@ -12,7 +12,14 @@
     "build:backend": "pyinstaller backend.spec --noconfirm --distpath dist-backend",
     "dist": "electron-builder --win nsis --x64",
     "dist:dir": "electron-builder --win --x64 --dir",
-    "pack": "npm run build:backend && npm run dist"
+    "dist:linux": "electron-builder --linux AppImage deb tar.gz",
+    "dist:linux:dir": "electron-builder --linux --dir",
+    "dist:mac": "electron-builder --mac dmg zip",
+    "dist:mac:dir": "electron-builder --mac --dir",
+    "pack": "npm run build:backend && npm run dist",
+    "pack:linux": "npm run build:backend && npm run dist:linux",
+    "pack:mac": "npm run build:backend && npm run dist:mac",
+    "pack:all": "npm run build:backend && electron-builder -mwl"
   },
   "devDependencies": {
     "electron": "^33.0.0",
@@ -30,6 +37,8 @@
       "electron/**/*",
       "UI.html",
       "Logo.svg",
+      "css/**/*",
+      "js/**/*",
       "package.json"
     ],
     "extraResources": [
@@ -62,6 +71,50 @@
       "shortcutName": "StreamRip Core",
       "installerIcon": "build/icon.ico",
       "installerHeaderIcon": "build/icon.ico"
+    },
+    "linux": {
+      "target": [
+        "AppImage",
+        "deb",
+        "tar.gz"
+      ],
+      "category": "AudioVideo",
+      "icon": "build/icon.png",
+      "artifactName": "StreamRip-Core-${version}-${arch}.${ext}",
+      "executableName": "streamrip-core",
+      "desktop": {
+        "StartupWMClass": "StreamRip Core",
+        "MimeType": "text/html"
+      }
+    },
+    "deb": {
+      "priority": "optional",
+      "packageCategory": "video"
+    },
+    "mac": {
+      "target": [
+        "dmg",
+        "zip"
+      ],
+      "category": "public.app-category.video",
+      "icon": "build/icon.png",
+      "artifactName": "StreamRip-Core-${version}-${arch}.${ext}",
+      "hardenedRuntime": false,
+      "gatekeeperAssess": false
+    },
+    "dmg": {
+      "contents": [
+        {
+          "x": 130,
+          "y": 220
+        },
+        {
+          "x": 410,
+          "y": 220,
+          "type": "link",
+          "path": "/Applications"
+        }
+      ]
     },
     "afterPack": "scripts/afterPack.js"
   },

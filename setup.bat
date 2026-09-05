@@ -1,9 +1,9 @@
 @echo off
-title MediaFetch - Setup
+title StreamRip Core - Setup
 chcp 65001 >nul
 
 echo ============================================
-echo   MediaFetch - Environment Setup
+echo   StreamRip Core - Environment Setup (Windows)
 echo ============================================
 echo.
 
@@ -11,7 +11,7 @@ REM --- Check Python ---
 where python >nul 2>&1
 if %ERRORLEVEL% neq 0 (
     echo [ERROR] Python is not installed or not in PATH.
-    echo Please install Python from https://python.org (make sure to check 'Add Python to PATH') and re-run this setup.
+    echo Please install Python 3.11+ from https://python.org (check 'Add Python to PATH') and re-run this setup.
     pause
     exit /b 1
 )
@@ -27,10 +27,10 @@ if %ERRORLEVEL% neq 0 (
 echo [OK] pip detected
 
 echo.
-echo Installing / updating spotdl, yt-dlp, and dependencies...
+echo Installing Python dependencies from requirements.txt...
 echo.
 python -m pip install --upgrade pip --quiet
-python -m pip install --upgrade spotdl spotapi spotipyfree yt-dlp --quiet
+python -m pip install -r requirements.txt --quiet
 
 if %ERRORLEVEL% neq 0 (
     echo.
@@ -39,7 +39,23 @@ if %ERRORLEVEL% neq 0 (
     exit /b 1
 )
 
-echo [OK] Dependencies installed successfully.
+echo [OK] Python dependencies installed (flask, yt-dlp, spotdl, imageio-ffmpeg for bundled ffmpeg).
+echo.
+
+REM --- Check Node / npm for Electron desktop ---
+where npm >nul 2>&1
+if %ERRORLEVEL% neq 0 (
+    echo [!] npm not found. Electron desktop packaging will be skipped.
+    echo     Install Node.js 20 LTS from https://nodejs.org to build the .exe installer.
+) else (
+    echo Installing Electron dependencies...
+    call npm install
+    echo [OK] Node modules installed.
+)
+echo.
+
+REM --- Verify bundled ffmpeg source ---
+python -c "import imageio_ffmpeg; print('[OK] ffmpeg:', imageio_ffmpeg.get_ffmpeg_exe())"
 echo.
 
 REM --- Create default output folders ---
@@ -62,6 +78,6 @@ if not exist "%YOUTUBE_OUT%" (
 echo.
 echo ============================================
 echo   Setup Complete!
-echo   Double-click run.bat to launch MediaFetch.
+echo   Run run.bat to launch, or npm run pack for the .exe installer.
 echo ============================================
 pause

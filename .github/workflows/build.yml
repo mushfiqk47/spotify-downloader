@@ -1,0 +1,112 @@
+name: Build & Package (Linux, macOS, Windows)
+
+on:
+  push:
+    branches: [main, master]
+    tags:
+      - 'v*'
+  pull_request:
+    branches: [main, master]
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            platform: linux
+          - os: macos-latest
+            platform: mac
+          - os: windows-latest
+            platform: win
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Set up Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      # System ffmpeg is only a build-time convenience. The shipped app uses
+      # the pip-bundled imageio-ffmpeg binary, so clean user machines need
+      # nothing installed.
+      - name: Install System Dependencies (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y ffmpeg
+
+      - name: Install System Dependencies (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          brew install ffmpeg || true
+
+      - name: Install System Dependencies (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          choco install ffmpeg --no-progress -y || echo "ffmpeg optional for build"
+
+      - name: Install Python Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Install Node Dependencies
+        run: npm ci || npm install
+
+      - name: Verify ffmpeg bundling source
+        run: python -c "import imageio_ffmpeg; print(imageio_ffmpeg.get_ffmpeg_exe())"
+
+      - name: Build Standalone Backend with PyInstaller
+        run: python -m PyInstaller backend.spec --noconfirm --distpath dist-backend
+
+      - name: Smoke-test backend (pykakasi data + health + browse)
+        run: |
+          python -c "from PyInstaller.utils.hooks import collect_data_files; d=collect_data_files('pykakasi'); assert any('kanwadict4' in a for a,_ in d), 'pykakasi data missing'; print(f'[OK] pykakasi bundled: {len(d)} files')"
+          python -m py_compile server.py main.py app_pipeline.py core/*.py engines/*.py
+          python -c "import sys; sys.path.insert(0,'.'); from server import app; c=app.test_client(); assert c.get('/api/health').status_code==200; assert c.get('/api/browse?path=__drives__').status_code==200; print('[OK] backend routes')"
+        shell: bash
+
+      - name: Build Desktop Application (Linux)
+        if: runner.os == 'Linux'
+        run: npm run dist:linux
+
+      - name: Build Desktop Application (macOS)
+        if: runner.os == 'macOS'
+        run: npm run dist:mac
+
+      - name: Build Desktop Application (Windows)
+        if: runner.os == 'Windows'
+        run: npm run dist
+
+      - name: List artifacts
+        run: ls -la dist-installer/
+        shell: bash
+
+      - name: Upload Build Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: StreamRip-Core-${{ matrix.platform }}
+          path: dist-installer/*
+          if-no-files-found: warn
+
+      - name: Release to GitHub (Tags only)
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist-installer/*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

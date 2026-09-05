@@ -1,4 +1,4 @@
-const { app, BrowserWindow } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog } = require('electron');
 const { spawn } = require('child_process');
 const path = require('path');
 const fs = require('fs');
@@ -32,9 +32,23 @@ function findBackend() {
   return null;
 }
 
+function chmodExec(p) {
+  if (process.platform === 'win32') return;
+  try { fs.chmodSync(p, 0o755); } catch { /* ignore */ }
+}
+
 function startBackend() {
   const exe = findBackend();
   if (exe) {
+    chmodExec(exe);
+    // bundled ffmpeg sidecar (if shipped via extraResources) must stay executable
+    try {
+      const dir = path.dirname(exe);
+      for (const n of ['ffmpeg', 'ffmpeg.exe']) {
+        const f = path.join(dir, n);
+        if (fs.existsSync(f)) chmodExec(f);
+      }
+    } catch { /* ignore */ }
     backendProc = spawn(exe, [], {
       env: { ...process.env, STREAMRIP_PORT: String(PORT) },
       stdio: 'ignore',
@@ -62,7 +76,7 @@ function waitForBackend(timeoutMs = 30000) {
   const started = Date.now();
   return new Promise((resolve) => {
     const tick = () => {
-      const req = http.get(`${BACKEND_URL}/api/check-updates`, (res) => {
+      const req = http.get(`${BACKEND_URL}/api/health`, (res) => {
         res.resume();
         resolve(true);
       });
@@ -108,6 +122,20 @@ const gotLock = app.requestSingleInstanceLock();
 if (!gotLock) {
   app.quit();
 } else {
+  // Native Windows folder picker for the Browse button.
+  // Renderer calls: await window.streamrip.selectFolder(startPath?)
+  ipcMain.handle('select-folder', async (_event, startPath) => {
+    try {
+      const opts = { properties: ['openDirectory', 'createDirectory'] };
+      if (typeof startPath === 'string' && startPath && fs.existsSync(startPath)) {
+        opts.defaultPath = startPath;
+      }
+      const res = await dialog.showOpenDialog(mainWindow, opts);
+      if (res.canceled || !res.filePaths || !res.filePaths.length) return null;
+      return res.filePaths[0];
+    } catch { return null; }
+  });
+
   app.on('second-instance', () => {
     if (mainWindow) {
       if (mainWindow.isMinimized()) mainWindow.restore();

@@ -11,21 +11,35 @@ block_cipher = None
 # Only spotdl needs a submodule sweep (dynamic provider imports).
 # flask/werkzeug/jinja2/yt-dlp are handled by PyInstaller's own hooks
 # (yt-dlp ships its own __pyinstaller hook for extractors).
-hidden = ["yt_dlp", "spotdl", "spotdl.console", "spotdl.__main__"]
+hidden = ["yt_dlp", "spotdl", "spotdl.console", "spotdl.__main__", "pykakasi", "jaconv", "imageio_ffmpeg"]
 try:
     hidden += collect_submodules("spotdl")
+except Exception:
+    pass
+try:
+    hidden += collect_submodules("pykakasi")
 except Exception:
     pass
 
 datas = [
     ("UI.html", "."),
     ("Logo.svg", "."),
+    ("css", "css"),
+    ("js", "js"),
 ]
-for pkg in ("certifi", "yt_dlp", "spotdl"):
+for pkg in ("certifi", "yt_dlp", "spotdl", "pykakasi", "jaconv", "imageio_ffmpeg", "imageio"):
     try:
         datas += collect_data_files(pkg)
     except Exception:
         pass
+
+# pykakasi kanwadict / dictionary DBs required at runtime by spotdl.
+# Without this the frozen exe fails with:
+#   FileNotFoundError: ...\\pykakasi\\data\\kanwadict4.db
+try:
+    datas += collect_data_files("pykakasi")
+except Exception:
+    pass
 
 # Heavy packages that the backend never touches at runtime.
 # (Keeps the exe small and the build fast.)

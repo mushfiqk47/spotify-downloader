@@ -1,0 +1,11 @@
+# Core runtime dependencies
+flask>=3.0.0
+yt-dlp>=2024.8.6
+spotdl>=4.2.8
+spotapi>=0.1.0
+spotipyfree>=0.1.0
+# Static ffmpeg binary per platform (no system ffmpeg needed on clean OS)
+imageio-ffmpeg>=0.5.0
+
+# Build and packaging dependencies
+pyinstaller>=6.4.0

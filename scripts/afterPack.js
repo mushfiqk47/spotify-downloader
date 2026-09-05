@@ -20,6 +20,18 @@ function findRcedit() {
 }
 
 exports.default = async function afterPack(context) {
+  // Clean-OS: backend (+ bundled ffmpeg sidecar) must stay executable
+  // inside the packaged app on Linux/macOS.
+  try {
+    const resDir = path.join(context.appOutDir, 'resources', 'backend');
+    if (fs.existsSync(resDir)) {
+      for (const n of fs.readdirSync(resDir)) {
+        if (n === 'streamrip-backend' || n === 'ffmpeg' || n.endsWith('.bin')) {
+          try { fs.chmodSync(path.join(resDir, n), 0o755); } catch { /* ignore */ }
+        }
+      }
+    }
+  } catch { /* ignore */ }
   if (context.packager.platform.name !== 'windows') return;
   const exePath = path.join(context.appOutDir, `${context.packager.appInfo.productFilename}.exe`);
   const iconPath = path.join(context.packager.projectDir, 'build', 'icon.ico');

@@ -11,7 +11,7 @@ from typing import Any, Dict, Optional
 
 def _writable_config_path() -> Path:
     # Frozen (PyInstaller / Electron): settings must live next to the exe
-    # or in %APPDATA%, never inside the read-only _MEIPASS bundle.
+    # or in user config dir, never inside the read-only _MEIPASS bundle.
     if getattr(sys, "frozen", False):
         exe_dir = Path(sys.executable).resolve().parent
         try:
@@ -21,9 +21,19 @@ def _writable_config_path() -> Path:
             return p
         except OSError:
             pass
-        appdata = Path(os.environ.get("APPDATA", str(Path.home()))) / "StreamRipCore"
-        appdata.mkdir(parents=True, exist_ok=True)
-        return appdata / "settings.json"
+
+        if sys.platform == "win32":
+            base = Path(os.environ.get("APPDATA", str(Path.home())))
+        elif sys.platform == "darwin":
+            base = Path.home() / "Library" / "Application Support"
+        else:
+            # Linux / Unix XDG standard (Ubuntu, Arch, etc.)
+            xdg = os.environ.get("XDG_CONFIG_HOME")
+            base = Path(xdg) if xdg else Path.home() / ".config"
+
+        app_dir = base / "StreamRipCore"
+        app_dir.mkdir(parents=True, exist_ok=True)
+        return app_dir / "settings.json"
     return Path(__file__).resolve().parent.parent / "settings.json"
 
 

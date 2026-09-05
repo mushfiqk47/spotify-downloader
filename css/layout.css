@@ -1,0 +1,132 @@
+.app-card {
+  width: 100%;
+  max-width: 980px;
+  max-height: calc(100vh - 80px);
+  background: var(--color-white);
+  border-radius: var(--radius-cards);
+  box-shadow: var(--shadow-card);
+  border: 1px solid var(--color-silver);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.window-header {
+  padding: 20px 28px;
+  border-bottom: 1px solid var(--color-silver);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: var(--color-white);
+  flex-shrink: 0;
+}
+
+.brand-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.brand-mark {
+  width: 28px;
+  height: 28px;
+  display: block;
+  flex-shrink: 0;
+}
+
+.app-title {
+  font-family: var(--font-headline);
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: 0.2px;
+  color: var(--color-ink);
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.system-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--color-slate);
+}
+
+.status-pip {
+  width: 7px;
+  height: 7px;
+  background-color: var(--color-ink);
+  border-radius: 50%;
+}
+
+.app-layout {
+  display: grid;
+  grid-template-columns: 1.15fr 0.85fr;
+  min-height: 0;
+  flex: 1;
+  overflow: hidden;
+}
+
+.workspace-pane {
+  padding: 32px 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  border-right: 1px solid var(--color-silver);
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.workspace-pane::-webkit-scrollbar {
+  display: none;
+  width: 0;
+}
+
+.log-pane {
+  background: #fafafa;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.log-header {
+  padding: 20px 24px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid var(--color-silver);
+  flex-shrink: 0;
+}
+
+.log-heading {
+  font-family: var(--font-headline);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.2px;
+  color: var(--color-graphite);
+}
+
+@media (max-width: 800px) {
+  .app-card {
+    max-height: none;
+  }
+  .app-layout {
+    grid-template-columns: 1fr;
+    overflow: visible;
+  }
+  .workspace-pane {
+    border-right: none;
+    border-bottom: 1px solid var(--color-silver);
+  }
+}

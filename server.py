@@ -3,6 +3,10 @@
 Run:  python server.py  ->  http://127.0.0.1:5050
 API:
   GET  /                        -> UI.html
+  GET  /css/<path>, /js/<path>, /Logo.svg -> static assets (frozen-safe)
+  GET  /api/health              -> {ok: True} (lightweight Electron readiness probe)
+  GET  /api/config              -> defaults + ffmpeg status
+  GET  /api/browse?path=...     -> folder listing for Browse button
   GET  /api/check-updates       -> {updates: {name: [current, latest]}}
   POST /api/update              -> {job_id} (pip upgrade in background)
   POST /api/download            -> {job_id} (yt-dlp / spotdl in background)
@@ -59,6 +63,110 @@ def _new_job(runner: AsyncProcessRunner, engine=None) -> str:
 @app.get("/")
 def index():
     return send_from_directory(str(BASE_DIR), "UI.html")
+
+
+@app.get("/api/health")
+def health():
+    return jsonify({"ok": True})
+
+
+# Explicit frozen-safe static routes (do not rely on Flask static_url_path
+# semantics inside the PyInstaller bundle / Electron asar).
+@app.get("/css/<path:name>")
+def serve_css(name: str):
+    return send_from_directory(str(BASE_DIR / "css"), name)
+
+
+@app.get("/js/<path:name>")
+def serve_js(name: str):
+    return send_from_directory(str(BASE_DIR / "js"), name)
+
+
+@app.get("/Logo.svg")
+def serve_logo():
+    return send_from_directory(str(BASE_DIR), "Logo.svg")
+
+
+@app.get("/api/config")
+def get_config():
+    default_yt = str(Path.home() / ("Movies/YouTubeDownloads" if sys.platform == "darwin" else "Videos/YouTubeDownloads"))
+    default_sp = str(Path.home() / "Music/SpotifyDownloads")
+    try:
+        from core.ffmpeg import find_ffmpeg as _find_ffmpeg
+        ffmpeg = _find_ffmpeg()
+    except Exception:
+        ffmpeg = None
+    return jsonify({
+        "youtube_out": settings.get("youtube_out") or default_yt,
+        "spotify_out": settings.get("spotify_out") or default_sp,
+        "platform": sys.platform,
+        "frozen": is_frozen(),
+        "ffmpeg": ffmpeg,
+        "ffmpeg_ok": bool(ffmpeg),
+    })
+
+
+def _list_drives():
+    """Windows drive roots (C:\\, D:\\, ...) that actually exist."""
+    drives = []
+    for letter in "ABCDEFGHIJKLMNOPQRSTUVWXYZ":
+        root = f"{letter}:\\"
+        try:
+            if Path(root).exists():
+                drives.append(root)
+        except Exception:
+            continue
+    return drives
+
+
+@app.get("/api/browse")
+def browse_folders():
+    """Folder browser for the UI Browse button (works in browser mode too).
+
+    GET /api/browse?path=<abs path>  -> {path, parent, dirs: [{name, path}], drives, home}
+    GET /api/browse                   -> starts at current out_dir / home.
+    GET /api/browse?path=__drives__   -> Windows drive list only.
+    Only directories are listed; files are never exposed.
+    """
+    raw = (request.args.get("path") or "").strip()
+    if raw == "__drives__":
+        drives = _list_drives()
+        return jsonify({"path": "__drives__", "parent": None, "dirs": [
+            {"name": d, "path": d} for d in drives], "drives": drives,
+            "home": str(Path.home())})
+    if not raw:
+        raw = settings.get("youtube_out") or str(Path.home())
+    # allow home-relative shorthand
+    p = Path(os.path.expandvars(os.path.expanduser(raw)))
+    try:
+        if not p.exists():
+            # fall back to nearest existing ancestor
+            for parent in [p, *p.parents]:
+                if parent.exists():
+                    p = parent
+                    break
+        if p.is_file():
+            p = p.parent
+        p = p.resolve()
+    except Exception as e:
+        return jsonify({"error": str(e)}), 400
+    try:
+        entries = sorted(
+            (d for d in p.iterdir() if d.is_dir()),
+            key=lambda d: d.name.lower())
+        dirs = [{"name": d.name, "path": str(d)} for d in entries
+                if not d.name.startswith("$")]
+    except PermissionError:
+        return jsonify({"error": f"Access denied: {p}", "path": str(p)}), 403
+    except Exception as e:
+        return jsonify({"error": str(e)}), 400
+    parent = str(p.parent) if p.parent != p else None
+    drives = _list_drives() if sys.platform == "win32" else []
+    return jsonify({
+        "path": str(p), "parent": parent, "dirs": dirs,
+        "drives": drives, "home": str(Path.home()),
+        "sep": os.sep,
+    })
 
 
 @app.get("/api/check-updates")

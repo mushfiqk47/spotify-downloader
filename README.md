@@ -88,45 +88,136 @@ spotify downloder/
 
 ---
 
-## 📦 Setup & Requirements
+## 📦 Multi-Platform Setup & Requirements
 
-### System Requirements
-- **Operating System**: Windows 10 or Windows 11 (64-bit)
-- **Python**: Version 3.8 or newer (with `pip` in PATH)
-- **Network**: Active internet connection
+### Supported Operating Systems
+- **Linux**: Ubuntu/Debian, Arch Linux/Manjaro, Fedora/RHEL, openSUSE (64-bit)
+- **macOS**: Apple Silicon (M1/M2/M3/M4) & Intel (macOS 11+)
+- **Windows**: Windows 10 & 11 (64-bit)
 
-### Automated Setup
-Run **`setup.bat`** once after cloning:
+---
+
+### 🐧 Linux (Ubuntu, Arch, Fedora)
+
+#### 1. Automated Setup
+Run the universal installer in terminal:
+```bash
+chmod +x setup.sh
+./setup.sh
+```
+This script automatically:
+- Detects your package manager (`apt`, `pacman`, `dnf`, `zypper`).
+- Installs `python3`, `python3-pip`, `python3-venv`, `ffmpeg`, `nodejs`, and `npm`.
+- Creates an isolated PEP 668-compliant virtual environment (`.venv`).
+- Installs all Python dependencies from `requirements.txt`.
+- Installs Electron desktop dependencies via `npm`.
+- Bootstraps default folders (`~/Videos/YouTubeDownloads`, `~/Music/SpotifyDownloads`).
+- Adds a desktop shortcut to your application menu (`~/.local/share/applications/streamrip-core.desktop`).
+
+#### 2. Launch
+```bash
+./run.sh
+# or force browser mode:
+./run.sh --browser
+```
+
+#### 3. Build Desktop Packages (AppImage, deb, tar.gz)
+```bash
+./build.sh
+# or build specific formats:
+./build.sh appimage
+./build.sh deb
+```
+
+---
+
+### 🍎 macOS (Apple Silicon & Intel)
+
+#### 1. Automated Setup
+```bash
+chmod +x setup.sh
+./setup.sh
+```
+This script automatically:
+- Verifies/installs [Homebrew](https://brew.sh).
+- Installs `python3`, `ffmpeg`, and `node` via `brew`.
+- Sets up `.venv` and installs all requirements.
+- Prepares default directories (`~/Movies/YouTubeDownloads`, `~/Music/SpotifyDownloads`).
+
+#### 2. Launch
+```bash
+./run.sh
+```
+
+#### 3. Build macOS Bundles (.dmg, .zip)
+```bash
+./build.sh
+```
+Installers will be generated in the `dist-installer/` directory.
+
+---
+
+### 🪟 Windows Setup & Launch
+
+#### Automated Setup
+Double-click or run **`setup.bat`**:
 ```cmd
 setup.bat
 ```
 
-This automated setup will:
-1. Verify Python and `pip` installation.
-2. Install or upgrade all dependencies (`spotdl`, `spotapi`, `spotipyfree`, `yt-dlp`).
-3. Automatically create the default output directories:
-   - Spotify: `%USERPROFILE%\Music\SpotifyDownloads`
-   - YouTube: `%USERPROFILE%\Videos\YouTubeDownloads`
+#### Launching
+Double-click `run.bat` or execute:
+```cmd
+python main.py
+```
+
+#### Packaging Windows Installer (.exe)
+```cmd
+npm run pack
+```
 
 ---
 
-## Launching the Application
+### 🛠️ Quick Commands (Makefile)
 
-| Target | Batch Launcher | CLI Command |
-| :--- | :--- | :--- |
-| **All-in-One Studio** | Double-click `run.bat` | `python main.py` |
+If `make` is installed on your system, you can use standard shorthand targets:
+```bash
+make setup          # Install dependencies on current OS
+make run            # Launch desktop application
+make run-browser    # Run with default web browser
+make build          # Build standalone binary and package app
+make build-backend  # PyInstaller compilation only
+make dist-linux     # Build AppImage, deb, and tar.gz
+make dist-mac       # Build dmg and zip
+make dist-win       # Build Windows setup exe
+make test           # Verify Python syntax and modules
+make clean          # Remove build artifacts and caches
+```
+
+---
+
+## ☁️ Automated Cloud Builds (GitHub Actions)
+
+This repository includes a multi-platform build matrix in [`.github/workflows/build.yml`](file:///.github/workflows/build.yml).
+Pushing code or creating a tag (e.g. `v1.0.0`) automatically compiles native binaries on:
+- **Ubuntu**: produces `.AppImage`, `.deb`, `.tar.gz`
+- **macOS**: produces `.dmg` and `.zip`
+- **Windows**: produces `StreamRip-Core-Setup-*.exe`
 
 ---
 
 ## ⚙️ Configuration (`settings.json`)
 
-User configurations are automatically managed and persisted in `settings.json`. Default settings structure:
+User configurations are automatically managed and persisted in standard OS locations:
+- **Linux**: `~/.config/StreamRipCore/settings.json`
+- **macOS**: `~/Library/Application Support/StreamRipCore/settings.json`
+- **Windows**: `%APPDATA%\StreamRipCore\settings.json`
 
 ```json
 {
   "mode": "youtube",
-  "youtube_out": "C:\\Users\\<User>\\Videos\\YouTubeDownloads",
-  "spotify_out": "C:\\Users\\<User>\\Music\\SpotifyDownloads",
+  "youtube_out": "/home/user/Videos/YouTubeDownloads",
+  "spotify_out": "/home/user/Music/SpotifyDownloads",
   "yt_stream": "Best Available (Source)",
   "yt_caption_env": "SubRip Subtitle (.srt)",
   "yt_capture_subs": true,
@@ -143,12 +234,15 @@ User configurations are automatically managed and persisted in `settings.json`. 
 
 ## 🔧 Troubleshooting & Tips
 
-- **Missing FFmpeg**: The application automatically checks `PATH`, WinGet links (`%LOCALAPPDATA%\Microsoft\WinGet\Links`), and spotDL directories (`~/.spotdl/ffmpeg.exe`). If FFmpeg is not found, install it via WinGet:
-  ```cmd
-  winget install Gyan.FFmpeg
-  ```
-- **Updating Extractors**: When YouTube or Spotify change their streaming layouts, update extractors to their latest releases:
-  ```cmd
+- **FFmpeg Discovery**: The application automatically checks system `PATH`, standard Unix paths (`/usr/bin/ffmpeg`, `/opt/homebrew/bin/ffmpeg`), WinGet links, and `~/.spotdl/ffmpeg`.
+  - Ubuntu/Debian: `sudo apt install ffmpeg`
+  - Arch Linux: `sudo pacman -S ffmpeg`
+  - Fedora: `sudo dnf install ffmpeg`
+  - macOS: `brew install ffmpeg`
+  - Windows: `winget install Gyan.FFmpeg`
+- **Updating Extractors**: When YouTube or Spotify change streaming layouts, upgrade dependencies directly in the UI with the **Check Updates** button, or run:
+  ```bash
   pip install --upgrade yt-dlp spotdl
   ```
 - **Aborting Downloads**: You can cleanly halt any running extraction at any time by clicking **■ Cancel Extraction**.
+

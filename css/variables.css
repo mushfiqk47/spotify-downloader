@@ -1,0 +1,47 @@
+:root {
+  /* Cal.com Color Tokens */
+  --color-ink: #101010;
+  --color-action-blue: #0099ff;
+  --color-white: #ffffff;
+  --color-paper: #f4f4f4;
+  --color-graphite: #242424;
+  --color-slate: #6b7280;
+  --color-stone: #898989;
+  --color-silver: #e5e7eb;
+  --color-info-banner-bg: #eff6fe;
+
+  /* Typography Families */
+  --font-headline: 'Cal Sans', 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-body: 'Cal Sans UI Variable Light', 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-mono: ui-monospace, 'Cascadia Code', 'Source Code Pro', Menlo, Consolas, monospace;
+
+  /* Radii */
+  --radius-cards: 12px;
+  --radius-inputs: 8px;
+  --radius-buttons: 9999px;
+  --radius-tags: 9999px;
+
+  /* Elevation */
+  --shadow-card: rgba(36, 36, 36, 0.05) 0px 4px 8px 0px;
+  --shadow-subtle: rgba(0, 0, 0, 0.05) 0px 1px 2px 0px;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  -webkit-font-smoothing: antialiased;
+}
+
+body {
+  background-color: var(--color-paper);
+  color: var(--color-graphite);
+  font-family: var(--font-body);
+  font-weight: 300;
+  letter-spacing: -0.19px;
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 40px 24px;
+}
