@@ -1,0 +1,22 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Local user configuration
+settings.json
+*.tmp
+
+# Virtual environments
+venv/
+env/
+.venv/
+
+# SpotDL & yt-dlp cache
+.spotdl/
+*.spotdl
+
+# OS generated files
+Thumbs.db
+[Dd]esktop.ini
+.DS_Store
