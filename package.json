@@ -9,7 +9,7 @@
   "scripts": {
     "start": "electron .",
     "dev": "electron .",
-    "build:backend": "pyinstaller backend.spec --noconfirm --distpath dist-backend",
+    "build:backend": "node scripts/buildBackend.js",
     "dist": "electron-builder --win nsis --x64",
     "dist:dir": "electron-builder --win --x64 --dir",
     "dist:linux": "electron-builder --linux AppImage deb tar.gz",
