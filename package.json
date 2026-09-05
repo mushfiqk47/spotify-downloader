@@ -1,0 +1,71 @@
+{
+  "name": "streamrip-core",
+  "version": "1.0.0",
+  "description": "StreamRip Core - YouTube & Spotify extraction studio",
+  "author": "StreamRip",
+  "license": "MIT",
+  "private": true,
+  "main": "electron/main.js",
+  "scripts": {
+    "start": "electron .",
+    "dev": "electron .",
+    "build:backend": "pyinstaller backend.spec --noconfirm --distpath dist-backend",
+    "dist": "electron-builder --win nsis --x64",
+    "dist:dir": "electron-builder --win --x64 --dir",
+    "pack": "npm run build:backend && npm run dist"
+  },
+  "devDependencies": {
+    "electron": "^33.0.0",
+    "electron-builder": "^25.1.8"
+  },
+  "build": {
+    "appId": "com.streamrip.core",
+    "productName": "StreamRip Core",
+    "copyright": "Copyright © StreamRip",
+    "directories": {
+      "output": "dist-installer",
+      "buildResources": "build"
+    },
+    "files": [
+      "electron/**/*",
+      "UI.html",
+      "Logo.svg",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "dist-backend/",
+        "to": "backend/",
+        "filter": [
+          "**/*"
+        ]
+      }
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "build/icon.ico",
+      "artifactName": "StreamRip-Core-Setup-${version}.${ext}",
+      "signAndEditExecutable": false
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "StreamRip Core",
+      "installerIcon": "build/icon.ico",
+      "installerHeaderIcon": "build/icon.ico"
+    },
+    "afterPack": "scripts/afterPack.js"
+  },
+  "allowScripts": {
+    "electron@33.4.11": true
+  }
+}

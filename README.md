@@ -38,12 +38,9 @@ spotify downloder/
 │   ├── youtube.py        # YouTubeEngine (yt-dlp, multi-chunk concurrent fragments)
 │   └── spotify.py        # SpotifyEngine (spotDL, multi-threaded parallel downloads)
 ├── app.py                # StreamRipApp (Controller & View Assembly with 30ms batched drainer)
+├── app_pipeline.py       # drain_queue + finish_patch (pure, testable pipeline control)
 ├── main.py               # Lightweight studio launcher
-├── spotify_downloader.py # Lightweight Spotify studio launcher
-├── youtube_downloader.py # Lightweight YouTube studio launcher
 ├── run.bat               # Windows batch studio launcher
-├── run_spotify.bat       # Windows batch Spotify launcher
-├── run_youtube.bat       # Windows batch YouTube launcher
 ├── setup.bat             # Environment dependency installer & directory bootstrapper
 └── README.md             # Documentation
 ```
@@ -113,15 +110,11 @@ This automated setup will:
 
 ---
 
-## 🖥️ Launching the Application
-
-You can launch the extraction studio in any of three convenient modes:
+## Launching the Application
 
 | Target | Batch Launcher | CLI Command |
 | :--- | :--- | :--- |
 | **All-in-One Studio** | Double-click `run.bat` | `python main.py` |
-| **Direct YouTube Studio** | Double-click `run_youtube.bat` | `python youtube_downloader.py` |
-| **Direct Spotify Studio** | Double-click `run_spotify.bat` | `python spotify_downloader.py` |
 
 ---
 

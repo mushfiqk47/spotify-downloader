@@ -1,0 +1,875 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>StreamRip Core · Video & Captions</title>
+  <link rel="icon" href="Logo.svg" type="image/svg+xml" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <!-- Inter font fallback for Cal Sans UI and Matter specifications -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      /* Cal.com Color Tokens */
+      --color-ink: #101010;
+      --color-action-blue: #0099ff;
+      --color-white: #ffffff;
+      --color-paper: #f4f4f4;
+      --color-graphite: #242424;
+      --color-slate: #6b7280;
+      --color-stone: #898989;
+      --color-silver: #e5e7eb;
+      --color-info-banner-bg: #eff6fe;
+
+      /* Typography Families */
+      --font-headline: 'Cal Sans', 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      --font-body: 'Cal Sans UI Variable Light', 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      --font-mono: ui-monospace, 'Cascadia Code', 'Source Code Pro', Menlo, Consolas, monospace;
+
+      /* Radii */
+      --radius-cards: 12px;
+      --radius-inputs: 8px;
+      --radius-buttons: 9999px;
+      --radius-tags: 9999px;
+
+      /* Elevation */
+      --shadow-card: rgba(36, 36, 36, 0.05) 0px 4px 8px 0px;
+      --shadow-subtle: rgba(0, 0, 0, 0.05) 0px 1px 2px 0px;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    body {
+      background-color: var(--color-paper);
+      color: var(--color-graphite);
+      font-family: var(--font-body);
+      font-weight: 300;
+      letter-spacing: -0.19px;
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 40px 24px;
+    }
+
+    .app-card {
+      width: 100%;
+      max-width: 980px;
+      max-height: calc(100vh - 80px);
+      background: var(--color-white);
+      border-radius: var(--radius-cards);
+      box-shadow: var(--shadow-card);
+      border: 1px solid var(--color-silver);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      flex-shrink: 0;
+    }
+
+    .window-header {
+      padding: 20px 28px;
+      border-bottom: 1px solid var(--color-silver);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: var(--color-white);
+      flex-shrink: 0;
+    }
+
+    .brand-meta {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .brand-mark {
+      width: 28px;
+      height: 28px;
+      display: block;
+      flex-shrink: 0;
+    }
+
+    .app-title {
+      font-family: var(--font-headline);
+      font-size: 18px;
+      font-weight: 600;
+      letter-spacing: 0.2px;
+      color: var(--color-ink);
+    }
+
+    .system-status {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+      font-weight: 400;
+      color: var(--color-slate);
+    }
+
+    .status-pip {
+      width: 7px;
+      height: 7px;
+      background-color: var(--color-ink);
+      border-radius: 50%;
+    }
+
+    .app-layout {
+      display: grid;
+      grid-template-columns: 1.15fr 0.85fr;
+      min-height: 0;
+      flex: 1;
+      overflow: hidden;
+    }
+
+    @media (max-width: 800px) {
+      .app-card {
+        max-height: none;
+      }
+      .app-layout {
+        grid-template-columns: 1fr;
+        overflow: visible;
+      }
+    }
+
+    .workspace-pane {
+      padding: 32px 28px;
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+      border-right: 1px solid var(--color-silver);
+      min-height: 0;
+      overflow-y: auto;
+      overflow-x: hidden;
+    }
+
+    @media (max-width: 800px) {
+      .workspace-pane {
+        border-right: none;
+        border-bottom: 1px solid var(--color-silver);
+      }
+    }
+
+    .field-group {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .field-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+    }
+
+    .field-label {
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--color-graphite);
+      letter-spacing: -0.2px;
+    }
+
+    .field-hint {
+      font-size: 12px;
+      color: var(--color-slate);
+    }
+
+    .input-pill-text {
+      width: 100%;
+      background: var(--color-white);
+      border: 1px solid var(--color-silver);
+      border-radius: var(--radius-inputs);
+      color: var(--color-graphite);
+      font-family: var(--font-body);
+      font-size: 14px;
+      font-weight: 400;
+      letter-spacing: -0.2px;
+      padding: 11px 14px;
+      outline: none;
+      transition: border-color 0.12s ease;
+    }
+
+    .input-pill-text:focus {
+      border-color: var(--color-ink);
+    }
+
+    .input-pill-text::placeholder {
+      color: var(--color-stone);
+    }
+
+    .dest-row {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 8px;
+    }
+
+    .btn-secondary {
+      background: var(--color-paper);
+      border: 1px solid var(--color-silver);
+      border-radius: var(--radius-inputs);
+      color: var(--color-graphite);
+      font-family: var(--font-body);
+      font-size: 13px;
+      font-weight: 500;
+      padding: 0 16px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.12s ease, border-color 0.12s ease;
+    }
+
+    .btn-secondary:hover {
+      background: #eaeaea;
+      border-color: #d1d5db;
+    }
+
+    .selector-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+
+    .select-wrap {
+      position: relative;
+    }
+
+    .native-select {
+      width: 100%;
+      background: var(--color-white);
+      border: 1px solid var(--color-silver);
+      border-radius: var(--radius-inputs);
+      color: var(--color-graphite);
+      font-family: var(--font-body);
+      font-size: 13px;
+      font-weight: 400;
+      padding: 10px 32px 10px 12px;
+      outline: none;
+      cursor: pointer;
+      appearance: none;
+      -webkit-appearance: none;
+      transition: border-color 0.12s ease;
+    }
+
+    .native-select:focus {
+      border-color: var(--color-ink);
+    }
+
+    .select-chevron {
+      position: absolute;
+      right: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+      pointer-events: none;
+      stroke: var(--color-slate);
+      stroke-width: 1.5;
+      fill: none;
+    }
+
+    .config-card {
+      background: var(--color-paper);
+      border-radius: var(--radius-inputs);
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .checkbox-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .checkbox-target {
+      width: 16px;
+      height: 16px;
+      border: 1px solid #d1d5db;
+      border-radius: 4px;
+      background: var(--color-white);
+      margin-top: 2px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      transition: background-color 0.12s ease, border-color 0.12s ease;
+    }
+
+    input[type="checkbox"] {
+      display: none;
+    }
+
+    input[type="checkbox"]:checked + .checkbox-target {
+      background-color: var(--color-ink);
+      border-color: var(--color-ink);
+    }
+
+    input[type="checkbox"]:checked + .checkbox-target svg {
+      display: block;
+    }
+
+    .checkbox-target svg {
+      display: none;
+      width: 10px;
+      height: 10px;
+      stroke: var(--color-white);
+      stroke-width: 2.2;
+      fill: none;
+    }
+
+    .checkbox-meta {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .checkbox-title {
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--color-graphite);
+    }
+
+    .checkbox-caption {
+      font-size: 12px;
+      color: var(--color-slate);
+      letter-spacing: -0.24px;
+    }
+
+    .action-bottom {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      margin-top: auto;
+      padding-top: 8px;
+    }
+
+    .btn-pill-primary {
+      width: 100%;
+      height: 44px;
+      background-color: var(--color-ink);
+      color: var(--color-white);
+      border: 1px solid var(--color-ink);
+      border-radius: var(--radius-buttons);
+      font-family: var(--font-body);
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      transition: background 0.15s ease, opacity 0.15s ease;
+    }
+
+    .btn-pill-primary:hover {
+      background-color: #242424;
+    }
+
+    .btn-pill-primary:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+
+    .progress-track {
+      width: 100%;
+      height: 4px;
+      background: var(--color-paper);
+      border-radius: 9999px;
+      overflow: hidden;
+    }
+
+    .progress-fill {
+      width: 0%;
+      height: 100%;
+      background: var(--color-ink);
+      border-radius: 9999px;
+      transition: width 0.2s ease;
+    }
+
+    /* Right Side Pipeline Log */
+    .log-pane {
+      background: #fafafa;
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+      min-width: 0;
+      overflow: hidden;
+    }
+
+    .log-header {
+      padding: 20px 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid var(--color-silver);
+      flex-shrink: 0;
+    }
+
+    .log-heading {
+      font-family: var(--font-headline);
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: 0.2px;
+      color: var(--color-graphite);
+    }
+
+    .log-btn-link {
+      background: none;
+      border: none;
+      color: var(--color-slate);
+      font-family: var(--font-body);
+      font-size: 12px;
+      cursor: pointer;
+      padding: 0;
+      transition: color 0.12s ease;
+    }
+
+    .log-btn-link:hover {
+      color: var(--color-ink);
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .btn-update {
+      background: var(--color-white);
+      border: 1px solid var(--color-silver);
+      border-radius: 9999px;
+      color: var(--color-graphite);
+      font-family: var(--font-body);
+      font-size: 12px;
+      font-weight: 500;
+      padding: 7px 14px;
+      cursor: pointer;
+    }
+
+    .btn-update:hover {
+      border-color: var(--color-ink);
+    }
+
+    .btn-update:disabled {
+      opacity: 0.45;
+      cursor: default;
+    }
+
+    .btn-update.has-update {
+      background: var(--color-ink);
+      border-color: var(--color-ink);
+      color: var(--color-white);
+    }
+
+    .mode-toggle {
+      display: flex;
+      background: var(--color-paper);
+      border: 1px solid var(--color-silver);
+      border-radius: 9999px;
+      padding: 2px;
+      gap: 2px;
+    }
+
+    .mode-toggle button {
+      border: none;
+      background: transparent;
+      border-radius: 9999px;
+      font-family: var(--font-body);
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--color-slate);
+      padding: 6px 14px;
+      cursor: pointer;
+    }
+
+    .mode-toggle button.active {
+      background: var(--color-ink);
+      color: var(--color-white);
+    }
+
+    .log-body {
+      flex: 1;
+      min-height: 0;
+      padding: 24px;
+      font-family: var(--font-mono);
+      font-size: 12px;
+      line-height: 1.6;
+      color: var(--color-slate);
+      overflow-y: auto;
+      overflow-x: hidden;
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+      word-break: break-word;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      scrollbar-width: none;
+      -ms-overflow-style: none;
+    }
+
+    .log-body > div {
+      overflow-wrap: anywhere;
+      word-break: break-word;
+      flex-shrink: 0;
+    }
+
+    @media (max-width: 800px) {
+      .log-body {
+        max-height: 320px;
+      }
+    }
+
+    .log-body .entry-ink {
+      color: var(--color-ink);
+      font-weight: 500;
+    }
+
+    .log-body .entry-blue {
+      color: var(--color-action-blue);
+    }
+
+    .log-body::-webkit-scrollbar {
+      display: none;
+      width: 0;
+    }
+    .workspace-pane {
+      scrollbar-width: none;
+      -ms-overflow-style: none;
+    }
+    .workspace-pane::-webkit-scrollbar {
+      display: none;
+      width: 0;
+    }
+  </style>
+</head>
+<body>
+
+  <main class="app-card">
+    <header class="window-header">
+      <div class="brand-meta">
+        <img src="Logo.svg" alt="StreamRip logo" class="brand-mark" width="28" height="28" />
+        <h1 class="app-title">StreamRip Core</h1>
+      </div>
+      <div class="header-actions">
+        <div class="mode-toggle" role="tablist" aria-label="Source mode">
+          <button type="button" id="mode-youtube" class="active">YouTube</button>
+          <button type="button" id="mode-spotify">Spotify</button>
+        </div>
+        <button type="button" class="btn-update" id="btn-update">Check Updates</button>
+        <div class="system-status">
+          <span class="status-pip"></span>
+          <span id="status-label">Standby</span>
+        </div>
+      </div>
+    </header>
+
+    <div class="app-layout">
+      <!-- Left Config Section -->
+      <section class="workspace-pane">
+        <div class="field-group">
+          <div class="field-header">
+            <label class="field-label" for="target-url">Source URL</label>
+            <span class="field-hint">youtube / playlists</span>
+          </div>
+          <input 
+            id="target-url" 
+            class="input-pill-text" 
+            type="url" 
+            placeholder="https://www.youtube.com/watch?v=..."
+            autocomplete="off"
+            spellcheck="false"
+          />
+        </div>
+
+        <div class="field-group">
+          <div class="field-header">
+            <label class="field-label" for="dest-path">Export Destination</label>
+          </div>
+          <div class="dest-row">
+            <input 
+              id="dest-path" 
+              class="input-pill-text" 
+              type="text" 
+              value="C:\Users\MUSHFIQ\Videos\YouTubeDownloads"
+              spellcheck="false"
+            />
+            <button type="button" class="btn-secondary" id="btn-browse">Browse</button>
+          </div>
+        </div>
+
+        <div class="selector-grid">
+          <div class="field-group">
+            <label class="field-label" for="select-quality">Media Stream</label>
+            <div class="select-wrap">
+              <select id="select-quality" class="native-select">
+                <option value="best">Best Available (Source)</option>
+                <option value="1080p">1080p 60fps (H.264)</option>
+                <option value="720p">720p Optimized</option>
+                <option value="audio-only">Lossless Audio Only (M4A)</option>
+              </select>
+              <svg class="select-chevron" width="10" height="6" viewBox="0 0 10 6">
+                <path d="M1 1L5 5L9 1"/>
+              </svg>
+            </div>
+          </div>
+
+          <div class="field-group">
+            <label class="field-label" for="select-caption">Caption Envelope</label>
+            <div class="select-wrap">
+              <select id="select-caption" class="native-select">
+                <option value="srt">SubRip Subtitle (.srt)</option>
+                <option value="vtt">WebVTT (.vtt)</option>
+                <option value="json">Raw Timed Text (.json)</option>
+              </select>
+              <svg class="select-chevron" width="10" height="6" viewBox="0 0 10 6">
+                <path d="M1 1L5 5L9 1"/>
+              </svg>
+            </div>
+          </div>
+        </div>
+
+        <div class="config-card">
+          <label class="checkbox-item" for="chk-transcript">
+            <input type="checkbox" id="chk-transcript" checked />
+            <span class="checkbox-target">
+              <svg viewBox="0 0 12 12"><path d="M2 6L5 9L10 3"/></svg>
+            </span>
+            <span class="checkbox-meta">
+              <span class="checkbox-title">Capture Transcripts & Timestamps</span>
+              <span class="checkbox-caption">Prefers manual creator subs; falls back to automated tracks.</span>
+            </span>
+          </label>
+        </div>
+
+        <div class="action-bottom">
+          <button type="button" class="btn-pill-primary" id="btn-download">
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.8">
+              <path d="M7 1v8m0 0L4 6m3 3l3-3M2 11h10"/>
+            </svg>
+            Start Extraction
+          </button>
+          <div class="progress-track">
+            <div class="progress-fill" id="progress-bar"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Right Side Log Terminal -->
+      <aside class="log-pane">
+        <div class="log-header">
+          <span class="log-heading">Pipeline Output</span>
+          <button type="button" class="log-btn-link" id="btn-clear-feed">Clear</button>
+        </div>
+        <div class="log-body" id="console-feed">
+          <div>Ready. System initialized.</div>
+          <div class="entry-blue">Awaiting target input URL...</div>
+        </div>
+      </aside>
+    </div>
+  </main>
+
+  <script>
+    const elUrl = document.getElementById('target-url');
+    const elDest = document.getElementById('dest-path');
+    const elBrowse = document.getElementById('btn-browse');
+    const elDownload = document.getElementById('btn-download');
+    const elProgress = document.getElementById('progress-bar');
+    const elStatus = document.getElementById('status-label');
+    const elFeed = document.getElementById('console-feed');
+    const elClearFeed = document.getElementById('btn-clear-feed');
+    const elChkTranscript = document.getElementById('chk-transcript');
+    const elSelectQuality = document.getElementById('select-quality');
+    const elSelectCaption = document.getElementById('select-caption');
+    const elUpdate = document.getElementById('btn-update');
+    const elModeYt = document.getElementById('mode-youtube');
+    const elModeSp = document.getElementById('mode-spotify');
+
+    let mode = 'youtube';
+    let isProcessing = false;
+    let activeJob = null;
+    let pollTimer = null;
+    let pendingUpdates = {};
+
+    function nearBottom() {
+      return elFeed.scrollHeight - elFeed.scrollTop - elFeed.clientHeight < 40;
+    }
+
+    function appendLog(text, variant = '') {
+      const stick = nearBottom();
+      const line = document.createElement('div');
+      if (variant) line.classList.add(variant);
+      line.textContent = `[${new Date().toTimeString().split(' ')[0]}] ${text}`;
+      elFeed.appendChild(line);
+      while (elFeed.children.length > 1200) elFeed.removeChild(elFeed.firstChild);
+      if (stick) elFeed.scrollTop = elFeed.scrollHeight;
+    }
+
+    function tagToClass(tag) {
+      if (tag === 'success') return 'entry-ink';
+      if (tag === 'action_blue') return 'entry-blue';
+      if (tag === 'danger') return 'entry-ink';
+      return '';
+    }
+
+    function setMode(next) {
+      mode = next;
+      elModeYt.classList.toggle('active', mode === 'youtube');
+      elModeSp.classList.toggle('active', mode === 'spotify');
+      document.querySelector('.field-hint').textContent = mode === 'youtube' ? 'youtube / playlists' : 'spotify / albums / tracks';
+      elUrl.placeholder = mode === 'youtube' ? 'https://www.youtube.com/watch?v=...' : 'https://open.spotify.com/playlist/...';
+    }
+    elModeYt.addEventListener('click', () => setMode('youtube'));
+    elModeSp.addEventListener('click', () => setMode('spotify'));
+
+    elClearFeed.addEventListener('click', () => {
+      elFeed.innerHTML = '';
+      appendLog('Pipeline buffer cleared.');
+    });
+
+    elBrowse.addEventListener('click', () => {
+      appendLog('Tip: paste the full folder path into Export Destination.', 'entry-blue');
+      elDest.focus();
+    });
+
+    async function pollJob(jobId, onDone) {
+      try {
+        const res = await fetch(`/api/job/${jobId}`);
+        const data = await res.json();
+        (data.logs || []).forEach(l => appendLog(l.msg, tagToClass(l.tag)));
+        if (typeof data.percent === 'number') elProgress.style.width = `${data.percent}%`;
+        if (data.done) {
+          clearInterval(pollTimer);
+          pollTimer = null;
+          onDone(data.exit_code);
+          return true;
+        }
+      } catch (err) {
+        appendLog(`Poll error: ${err}`, 'entry-ink');
+      }
+      return false;
+    }
+
+    elDownload.addEventListener('click', async () => {
+      const rawUrl = elUrl.value.trim();
+      if (!rawUrl) {
+        appendLog('Error: Source URL cannot be empty.', 'entry-ink');
+        elUrl.focus();
+        return;
+      }
+      if (isProcessing) {
+        if (activeJob) {
+          await fetch(`/api/job/${activeJob}/abort`, { method: 'POST' });
+          appendLog('Abort requested.', 'entry-ink');
+        }
+        return;
+      }
+      isProcessing = true;
+      elDownload.disabled = false;
+      elDownload.innerHTML = 'Cancel Extraction';
+      elStatus.textContent = 'Processing';
+      elProgress.style.width = '0%';
+      appendLog(`Target verified: ${rawUrl}`);
+      try {
+        const res = await fetch('/api/download', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            url: rawUrl, mode,
+            out_dir: elDest.value.trim(),
+            yt_stream: elSelectQuality.options[elSelectQuality.selectedIndex]?.text || 'Best Available (Source)',
+            yt_caption_env: elSelectCaption.options[elSelectCaption.selectedIndex]?.text || 'SubRip Subtitle (.srt)',
+            yt_capture_subs: elChkTranscript.checked,
+            yt_transcript_only: false,
+            yt_lang: 'en'
+          })
+        });
+        const data = await res.json();
+        if (data.error) throw new Error(data.error);
+        activeJob = data.job_id;
+        appendLog(`Pipeline started (job ${activeJob}).`, 'entry-blue');
+        pollTimer = setInterval(async () => {
+          const finished = await pollJob(activeJob, (code) => {
+            isProcessing = false;
+            activeJob = null;
+            elDownload.innerHTML = 'Start Extraction';
+            elStatus.textContent = code === 0 ? 'Standby' : 'Failed';
+            if (code === 0) appendLog('Execution finished.', 'entry-ink');
+            else appendLog(`Pipeline halted with exit code ${code}.`, 'entry-ink');
+          });
+        }, 400);
+      } catch (err) {
+        appendLog(`Error: ${err.message}`, 'entry-ink');
+        isProcessing = false;
+        elDownload.innerHTML = 'Start Extraction';
+        elStatus.textContent = 'Standby';
+      }
+    });
+
+    // ---- Updates: connected to backend ----
+    async function refreshUpdates(silent) {
+      try {
+        elUpdate.disabled = true;
+        if (!silent) elUpdate.textContent = 'Checking...';
+        const res = await fetch('/api/check-updates');
+        const data = await res.json();
+        pendingUpdates = data.updates || {};
+        const names = Object.keys(pendingUpdates);
+        if (names.length) {
+          elUpdate.textContent = `Update Available (${names.length})`;
+          elUpdate.classList.add('has-update');
+          if (!silent) appendLog(`Updates available: ${names.join(', ')}`, 'entry-blue');
+        } else {
+          elUpdate.textContent = 'Up to Date';
+          elUpdate.classList.remove('has-update');
+          if (!silent) appendLog('All dependencies are up to date.');
+        }
+      } catch (err) {
+        elUpdate.textContent = 'Check Updates';
+        if (!silent) appendLog(`Update check failed: ${err}`, 'entry-ink');
+      } finally {
+        elUpdate.disabled = false;
+      }
+    }
+
+    elUpdate.addEventListener('click', async () => {
+      const names = Object.keys(pendingUpdates);
+      if (!names.length) { refreshUpdates(false); return; }
+      elUpdate.disabled = true;
+      elUpdate.textContent = 'Updating...';
+      appendLog(`Upgrading: ${names.join(' ')}`, 'entry-blue');
+      try {
+        const res = await fetch('/api/update', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ packages: names })
+        });
+        const data = await res.json();
+        const jobId = data.job_id;
+        const timer = setInterval(async () => {
+          const r = await fetch(`/api/job/${jobId}`);
+          const d = await r.json();
+          (d.logs || []).forEach(l => appendLog(l.msg, tagToClass(l.tag)));
+          if (d.done) {
+            clearInterval(timer);
+            appendLog('Upgrade finished. Re-checking...');
+            pendingUpdates = {};
+            refreshUpdates(true);
+          }
+        }, 500);
+      } catch (err) {
+        appendLog(`Upgrade failed: ${err}`, 'entry-ink');
+        elUpdate.disabled = false;
+      }
+    });
+
+    refreshUpdates(true);
+  </script>
+</body>
+</html>

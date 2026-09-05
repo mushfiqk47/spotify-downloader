@@ -5,11 +5,12 @@ Defines engine states, data models, cached FFmpeg discovery, and interfaces.
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from enum import Enum
+import sys
 from pathlib import Path
-import shutil
 from typing import List, Optional
 
 from core.process import AsyncProcessRunner
+from core.ffmpeg import find_ffmpeg as _core_find_ffmpeg
 
 
 class EngineState(Enum):
@@ -32,35 +33,26 @@ class ProgressUpdate:
     tag: str = "normal"  # "action_blue", "muted", "success", "danger", "normal"
 
 
-# Cached FFmpeg path lookup
-_CACHED_FFMPEG: Optional[str] = None
-_FFMPEG_CHECKED = False
-
-
 def find_ffmpeg() -> Optional[str]:
-    """Discovers and caches the path to the FFmpeg executable."""
-    global _CACHED_FFMPEG, _FFMPEG_CHECKED
-    if _FFMPEG_CHECKED:
-        return _CACHED_FFMPEG
+    """Seam alias -> single cached implementation in core.ffmpeg (Locality)."""
+    return _core_find_ffmpeg()
 
-    which = shutil.which("ffmpeg")
-    if which:
-        _CACHED_FFMPEG = which
-        _FFMPEG_CHECKED = True
-        return which
 
-    candidates = [
-        Path.home() / ".spotdl" / "ffmpeg.exe",
-        Path.home() / "AppData" / "Local" / "Microsoft" / "WinGet" / "Links" / "ffmpeg.exe",
-        Path("C:/ffmpeg/bin/ffmpeg.exe"),
-    ]
-    for c in candidates:
-        if c.is_file():
-            _CACHED_FFMPEG = str(c)
-            break
+def is_frozen() -> bool:
+    """True when running inside a PyInstaller / Electron bundle."""
+    return bool(getattr(sys, "frozen", False))
 
-    _FFMPEG_CHECKED = True
-    return _CACHED_FFMPEG
+
+def get_python_exe() -> str:
+    """Discovers console python.exe, preventing pythonw.exe subprocess issues on Windows."""
+    exe = sys.executable
+    p = Path(exe)
+    if "pythonw" in p.name.lower():
+        alt_name = p.name.lower().replace("pythonw", "python")
+        console_py = p.with_name(alt_name)
+        if console_py.is_file():
+            return str(console_py)
+    return exe
 
 
 class BaseDownloadEngine(ABC):

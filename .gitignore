@@ -3,18 +3,61 @@ __pycache__/
 *.py[cod]
 *$py.class
 
-# Local user configuration
-settings.json
-*.tmp
-
 # Virtual environments
 venv/
 env/
 .venv/
+ENV/
 
-# SpotDL & yt-dlp cache
+# Node.js dependencies & logs
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# PyInstaller build cache (preserve app icons in build/)
+build/*
+!build/icon*
+*.spec.bak
+
+# Packaged distribution outputs & installers
+dist/
+dist-backend/
+dist-installer/
+
+# Application and build logs
+*.log
+
+# Test and media download output directories
+test_out/
+downloads/
+
+# Local user configuration & secrets
+settings.json
+*.tmp
+.env
+.env.local
+.env.*.local
+
+# SpotDL & yt-dlp cache / temp
 .spotdl/
 *.spotdl
+
+# Standalone media binaries (if downloaded locally)
+ffmpeg.exe
+ffprobe.exe
+spotdl.exe
+yt-dlp.exe
+
+# Editor & IDE configurations
+.idea/
+.vscode/
+*.sublime-project
+*.sublime-workspace
+*.swp
+*.swo
 
 # OS generated files
 Thumbs.db

@@ -3,8 +3,28 @@ Settings persistence manager for StreamRip Core.
 Saves and loads user preferences to a local JSON file.
 """
 import json
+import os
+import sys
 from pathlib import Path
 from typing import Any, Dict, Optional
+
+
+def _writable_config_path() -> Path:
+    # Frozen (PyInstaller / Electron): settings must live next to the exe
+    # or in %APPDATA%, never inside the read-only _MEIPASS bundle.
+    if getattr(sys, "frozen", False):
+        exe_dir = Path(sys.executable).resolve().parent
+        try:
+            p = exe_dir / "settings.json"
+            p.touch(exist_ok=True)
+            p.unlink(missing_ok=True)
+            return p
+        except OSError:
+            pass
+        appdata = Path(os.environ.get("APPDATA", str(Path.home()))) / "StreamRipCore"
+        appdata.mkdir(parents=True, exist_ok=True)
+        return appdata / "settings.json"
+    return Path(__file__).resolve().parent.parent / "settings.json"
 
 
 class SettingsManager:
@@ -29,8 +49,7 @@ class SettingsManager:
         if config_file:
             self.config_path = Path(config_file)
         else:
-            # Save alongside the script or in the working directory
-            self.config_path = Path(__file__).resolve().parent.parent / "settings.json"
+            self.config_path = _writable_config_path()
 
         self.data: Dict[str, Any] = dict(self.DEFAULT_SETTINGS)
         self.load()

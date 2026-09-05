@@ -4,10 +4,11 @@ Features pre-compiled regex parsing and concurrent fragment acceleration.
 """
 import os
 import re
+import shutil
 import sys
 from typing import List
 
-from engines.base import BaseDownloadEngine, ProgressUpdate, find_ffmpeg
+from engines.base import BaseDownloadEngine, ProgressUpdate, find_ffmpeg, get_python_exe, is_frozen
 
 
 class YouTubeEngine(BaseDownloadEngine):
@@ -15,7 +16,7 @@ class YouTubeEngine(BaseDownloadEngine):
 
     # Pre-compiled regular expressions for maximum parsing throughput
     RE_DOWNLOAD_PCT = re.compile(
-        r"\[download\]\s+(\d+(?:\.\d+)?)%\s+of\s+(?:~\s*)?([^\s]+)\s+at\s+([^\s]+)\s+ETA\s+([^\s]+)"
+        r"\[download\]\s+(\d+(?:\.\d+)?)%\s+of\s+(?:~\s*)?([^\s]+)(?:\s+at\s+(.+?)\s+ETA\s+([^\s]+))?"
     )
     RE_ITEM_QUEUE = re.compile(
         r"\[download\] Downloading (?:video|item) (\d+) of (\d+)",
@@ -25,10 +26,10 @@ class YouTubeEngine(BaseDownloadEngine):
     RE_ERROR = re.compile(r"ERROR:|WARNING: Unable|HTTP Error", re.IGNORECASE)
 
     STREAM_PRESETS = {
-        "Best Available (Source)": "best",
-        "1080p (FHD)": "best[height<=1080]",
-        "720p (HD)": "best[height<=720]",
-        "480p (SD)": "best[height<=480]",
+        "Best Available (Source)": "bestvideo+bestaudio/best",
+        "1080p (FHD)": "bestvideo[height<=1080]+bestaudio/best[height<=1080]/best",
+        "720p (HD)": "bestvideo[height<=720]+bestaudio/best[height<=720]/best",
+        "480p (SD)": "bestvideo[height<=480]+bestaudio/best[height<=480]/best",
         "Audio Only (.mp3)": "mp3",
         "Audio Only (.m4a)": "m4a",
     }
@@ -52,18 +53,27 @@ class YouTubeEngine(BaseDownloadEngine):
         concurrent_fragments: int = 4,
         **kwargs,
     ) -> List[str]:
-        cmd = [sys.executable, "-m", "yt_dlp"]
+        if is_frozen():
+            # Inside the packaged exe there is no system python.
+            # Re-invoke our own backend exe which forwards to yt-dlp in-process.
+            cmd = [sys.executable, "--engine-yt-dlp"]
+        else:
+            cmd = [get_python_exe(), "-m", "yt_dlp"]
+
+        # 0. JavaScript runtime (fixes extraction & throttled format errors in yt-dlp)
+        if shutil.which("node"):
+            cmd.extend(["--js-runtimes", "node"])
+        elif shutil.which("deno"):
+            cmd.extend(["--js-runtimes", "deno"])
 
         # 1. Format / Stream selection
-        preset_val = self.STREAM_PRESETS.get(stream_preset, "best")
+        preset_val = self.STREAM_PRESETS.get(stream_preset, "bestvideo+bestaudio/best")
         if preset_val == "mp3":
             cmd.extend(["-x", "--audio-format", "mp3", "--audio-quality", "0"])
         elif preset_val == "m4a":
             cmd.extend(["-x", "--audio-format", "m4a", "--audio-quality", "0"])
-        elif preset_val == "best":
-            cmd.extend(["-f", "bestvideo+bestaudio/best"])
         else:
-            cmd.extend(["-f", f"{preset_val}+bestaudio/best"])
+            cmd.extend(["-f", preset_val])
 
         # 2. Performance: Multi-connection concurrent fragment downloading
         if concurrent_fragments > 1 and preset_val not in ("mp3", "m4a"):
@@ -78,10 +88,11 @@ class YouTubeEngine(BaseDownloadEngine):
         if capture_subs:
             sub_ext = self.CAPTION_EXT_MAP.get(caption_env, "srt")
             clean_lang = lang.strip() or "en"
+            sub_lang_spec = f"{clean_lang}.*,{clean_lang}" if clean_lang == "en" else clean_lang
             cmd.extend([
                 "--write-subs",
                 "--write-auto-subs",
-                "--sub-langs", clean_lang,
+                "--sub-langs", sub_lang_spec,
                 "--sub-format", "best",
             ])
             if ffmpeg:
@@ -99,13 +110,14 @@ class YouTubeEngine(BaseDownloadEngine):
         m_pct = self.RE_DOWNLOAD_PCT.search(line)
         if m_pct:
             pct_str, total_sz, spd, eta = m_pct.groups()
+            tag = "success" if float(pct_str) >= 100.0 else "action_blue"
             return ProgressUpdate(
                 percent=float(pct_str),
                 total_size=total_sz,
                 speed=spd,
                 eta=eta,
                 raw_line=line,
-                tag="action_blue",
+                tag=tag,
             )
 
         # Check playlist/queue progress

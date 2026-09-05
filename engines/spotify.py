@@ -7,7 +7,7 @@ import re
 import sys
 from typing import List
 
-from engines.base import BaseDownloadEngine, ProgressUpdate
+from engines.base import BaseDownloadEngine, ProgressUpdate, get_python_exe, is_frozen
 
 
 class SpotifyEngine(BaseDownloadEngine):
@@ -51,15 +51,26 @@ class SpotifyEngine(BaseDownloadEngine):
         bit_val = self.BITRATE_MAP.get(bitrate, "auto")
         out_template = os.path.join(out_dir, "{artists} - {title}.{output-ext}")
 
-        cmd = [
-            sys.executable, "-m", "spotdl", "download", url,
-            "--output", out_template,
-            "--format", fmt,
-            "--bitrate", bit_val,
-            "--threads", str(threads),
-            "--simple-tui",
-            "--print-errors",
-        ]
+        if is_frozen():
+            cmd = [
+                sys.executable, "--engine-spotdl", "download", url,
+                "--output", out_template,
+                "--format", fmt,
+                "--bitrate", bit_val,
+                "--threads", str(threads),
+                "--simple-tui",
+                "--print-errors",
+            ]
+        else:
+            cmd = [
+                get_python_exe(), "-m", "spotdl", "download", url,
+                "--output", out_template,
+                "--format", fmt,
+                "--bitrate", bit_val,
+                "--threads", str(threads),
+                "--simple-tui",
+                "--print-errors",
+            ]
 
         if generate_lrc:
             cmd.append("--generate-lrc")
