@@ -66,16 +66,90 @@ settings = SettingsManager()
 yt_engine = YouTubeEngine()
 sp_engine = SpotifyEngine()
 
-# job_id -> {"runner": AsyncProcessRunner, "engine": engine|None, "done": bool, "exit_code": int|None}
+# job_id -> {"runner": AsyncProcessRunner, "engine": engine|None, "done": bool,
+#            "exit_code": int|None, "created_at": float, "completed_at": float|None,
+#            "last_poll": float}
 _jobs: dict[str, dict] = {}
 _jobs_lock = threading.Lock()
+
+# Hard caps so a long-lived desktop session can never grow _jobs unbounded.
+# Done jobs expire fast (UI already showed the result); running jobs get a
+# generous TTL so an overnight playlist can't be reaped mid-run.
+MAX_JOBS = 20
+DONE_JOB_TTL = 600.0  # 10 min after completion
+JOB_TTL = 86400.0  # 24 h absolute max (abandoned running job)
+
+# /api/browse hardening: a single huge directory (e.g. C:\Windows\WinSxS)
+# must not blow up the JSON response or hang the UI modal.
+BROWSE_MAX_DIRS = 500
+
+# SSRF guard (CWE-918): this backend listens on localhost, but yt-dlp/spotdl
+# follow any URL they're given. Only allow the hosts this app is built for.
+_ALLOWED_HOSTS = {
+    "youtube": ("youtube.com", "www.youtube.com", "youtu.be", "music.youtube.com"),
+    "spotify": ("open.spotify.com",),
+}
+
+
+def _is_allowed_url(url: str, mode: str) -> bool:
+    try:
+        from urllib.parse import urlparse
+
+        parts = urlparse(url)
+        if parts.scheme not in ("http", "https"):
+            return False
+        host = (parts.hostname or "").lower()
+        return host in _ALLOWED_HOSTS.get(mode, ()) or any(
+            host.endswith("." + base) for base in _ALLOWED_HOSTS.get(mode, ())
+        )
+    except Exception:
+        return False
+
+
+def _prune_jobs(now: float | None = None) -> None:
+    """Evict expired / excess jobs. Caller must hold _jobs_lock."""
+    now = time.time() if now is None else now
+    # 1. Expire done jobs past DONE_JOB_TTL, and anything past absolute TTL.
+    expired = [
+        jid
+        for jid, job in _jobs.items()
+        if (job.get("done") and now - job.get("completed_at", job["created_at"]) > DONE_JOB_TTL)
+        or (now - job["created_at"] > JOB_TTL)
+    ]
+    for jid in expired:
+        _jobs.pop(jid, None)
+    # 2. Enforce cap: evict oldest done first, then oldest overall.
+    while len(_jobs) > MAX_JOBS:
+        done_ids = sorted(
+            (jid for jid, j in _jobs.items() if j.get("done")),
+            key=lambda jid: _jobs[jid]["created_at"],
+        )
+        victim = done_ids[0] if done_ids else min(_jobs, key=lambda jid: _jobs[jid]["created_at"])
+        _jobs.pop(victim, None)
 
 
 def _new_job(runner: AsyncProcessRunner, engine=None) -> str:
     job_id = uuid.uuid4().hex[:12]
+    now = time.time()
     with _jobs_lock:
-        _jobs[job_id] = {"runner": runner, "engine": engine, "done": False, "exit_code": None}
+        _prune_jobs(now)
+        _jobs[job_id] = {
+            "runner": runner,
+            "engine": engine,
+            "done": False,
+            "exit_code": None,
+            "created_at": now,
+            "completed_at": None,
+            "last_poll": now,
+        }
+        _prune_jobs(now)
     return job_id
+
+
+def _mark_done(job: dict, exit_code: int | None) -> None:
+    job["done"] = True
+    job["exit_code"] = exit_code
+    job["completed_at"] = time.time()
 
 
 @app.get("/")
@@ -157,6 +231,8 @@ def save_config():
             except Exception:
                 continue
         if key == "mode" and value not in ("youtube", "spotify"):
+            continue
+        if key == "yt_lang" and value not in YouTubeEngine.ALLOWED_LANGS:
             continue
         patch[key] = value
     if patch:
@@ -294,7 +370,8 @@ def browse_folders():
             (d for d in p.iterdir() if d.is_dir()),
             key=lambda d: d.name.lower())
         dirs = [{"name": d.name, "path": str(d)} for d in entries
-                if not d.name.startswith("$")]
+                if not d.name.startswith("$")][:BROWSE_MAX_DIRS]
+        truncated = len(entries) > len(dirs)
     except PermissionError:
         return jsonify({"error": f"Access denied: {p}", "path": str(p)}), 403
     except Exception as e:
@@ -303,6 +380,7 @@ def browse_folders():
     drives = _list_drives() if sys.platform == "win32" else []
     return jsonify({
         "path": str(p), "parent": parent, "dirs": dirs,
+        "truncated": truncated,
         "drives": drives, "home": str(Path.home()),
         "sep": os.sep,
     })
@@ -344,12 +422,32 @@ def start_download():
     url = (body.get("url") or "").strip().strip('"').strip("'")
     if not url:
         return jsonify({"error": "URL is required"}), 400
+    if len(url) > 2048:
+        return jsonify({"error": "URL too long"}), 400
 
     mode = body.get("mode") or settings.get("mode", "youtube")
+    if mode not in ("youtube", "spotify"):
+        return jsonify({"error": "Invalid mode"}), 400
+    if not _is_allowed_url(url, mode):
+        expected = "youtube.com / youtu.be" if mode == "youtube" else "open.spotify.com"
+        return jsonify({"error": f"URL must be a {expected} link for {mode} mode"}), 400
+
     out_dir = (body.get("out_dir") or "").strip() or str(
-        Path.home() / ("Videos/YouTubeDownloads" if mode == "youtube" else "Music/SpotifyDownloads")
+        settings.get("youtube_out" if mode == "youtube" else "spotify_out")
+        or Path.home() / ("Videos/YouTubeDownloads" if mode == "youtube" else "Music/SpotifyDownloads")
     )
-    os.makedirs(out_dir, exist_ok=True)
+    try:
+        out_path = Path(os.path.expandvars(os.path.expanduser(out_dir)))
+        if not out_path.is_absolute():
+            return jsonify({"error": "Export folder must be an absolute path"}), 400
+        out_path.mkdir(parents=True, exist_ok=True)
+        out_dir = str(out_path)
+    except OSError as e:
+        return jsonify({"error": f"Cannot create export folder: {e}"}), 400
+
+    _lang = body.get("yt_lang") or settings.get("yt_lang", "English")
+    if _lang not in YouTubeEngine.ALLOWED_LANGS:
+        _lang = "English"
 
     if mode == "youtube":
         engine = yt_engine
@@ -359,7 +457,7 @@ def start_download():
             caption_env=body.get("yt_caption_env") or settings.get("yt_caption_env"),
             capture_subs=bool(body.get("yt_capture_subs", settings.get("yt_capture_subs", False))),
             transcript_only=bool(body.get("yt_transcript_only", False)),
-            lang=(body.get("yt_lang") or settings.get("yt_lang", "en")),
+            lang=_lang,
             file_format=(body.get("yt_file_format") or settings.get("yt_file_format")),
             audio_quality=(body.get("yt_audio_quality") or settings.get("yt_audio_quality", "Best Available")),
         )
@@ -381,8 +479,14 @@ def start_download():
 
 @app.get("/api/job/<job_id>")
 def poll_job(job_id: str):
+    if not isinstance(job_id, str) or len(job_id) != 12 or not all(
+        c in "0123456789abcdef" for c in job_id
+    ):
+        return jsonify({"error": "unknown job"}), 404
     with _jobs_lock:
         job = _jobs.get(job_id)
+        if job is not None:
+            job["last_poll"] = time.time()
     if not job:
         return jsonify({"error": "unknown job"}), 404
 
@@ -410,8 +514,8 @@ def poll_job(job_id: str):
                 exit_code, _aborted = data
                 done = True
         if done:
-            job["done"] = True
-            job["exit_code"] = exit_code
+            with _jobs_lock:
+                _mark_done(job, exit_code)
         return jsonify({"logs": logs, "percent": None, "done": job["done"], "exit_code": job["exit_code"]})
 
     batch = drain_queue(runner.output_queue, engine.parse_line)
@@ -422,8 +526,8 @@ def poll_job(job_id: str):
         done = True
         exit_code = code
     if done:
-        job["done"] = True
-        job["exit_code"] = exit_code
+        with _jobs_lock:
+            _mark_done(job, exit_code)
     return jsonify({"logs": logs, "percent": batch.percent, "done": job["done"], "exit_code": job["exit_code"]})
 
 

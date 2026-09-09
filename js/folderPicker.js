@@ -79,7 +79,7 @@ async function loadFolder(targetPath) {
         const b = document.createElement('button');
         b.type = 'button';
         b.className = 'folder-item';
-        b.textContent = '\uD83D\uDCC1 ' + d.name;
+        b.textContent = d.name;
         b.addEventListener('click', () => loadFolder(d.path));
         elFolderList.appendChild(b);
       });

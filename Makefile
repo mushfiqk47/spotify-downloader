@@ -58,8 +58,9 @@ dist-win: build-backend
 	npm run dist
 
 test:
-	$(PYTHON) -m py_compile server.py main.py app_pipeline.py core/*.py engines/*.py
-	@echo "[OK] All Python modules compiled cleanly."
+	$(PYTHON) -m compileall -q server.py main.py app_pipeline.py core engines tests
+	$(PYTHON) -m pytest -q
+	@echo "[OK] Compile + pytest passed."
 
 clean:
 	rm -rf dist-backend dist-installer dist build/backend build/streamrip-backend

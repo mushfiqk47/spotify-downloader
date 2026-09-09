@@ -97,6 +97,15 @@
   background-color: #242424;
 }
 
+.btn-pill-primary.is-cancel {
+  background-color: #b91c1c;
+  border-color: #b91c1c;
+}
+
+.btn-pill-primary.is-cancel:hover {
+  background-color: #991b1b;
+}
+
 .btn-pill-primary:disabled {
   opacity: 0.4;
   cursor: not-allowed;
@@ -155,9 +164,6 @@
   display: none !important;
 }
 
-.field-group.span-all {
-  grid-column: 1 / -1;
-}
 
 .select-wrap {
   position: relative;
@@ -493,6 +499,16 @@ input[type="checkbox"]:checked + .checkbox-target svg {
 
 .log-body .entry-blue {
   color: var(--color-action-blue);
+}
+
+.log-body .entry-success {
+  color: #15803d;
+  font-weight: 500;
+}
+
+.log-body .entry-danger {
+  color: #dc2626;
+  font-weight: 500;
 }
 
 .log-body::-webkit-scrollbar {

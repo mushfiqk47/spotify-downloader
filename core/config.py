@@ -57,7 +57,7 @@ def default_settings() -> Dict[str, Any]:
         "yt_caption_env": "SubRip Subtitle (.srt)",
         "yt_capture_subs": False,
         "yt_transcript_only": False,
-        "yt_lang": "en",
+        "yt_lang": "English",
         "yt_file_format": "Match Source (no conversion)",
         "yt_audio_quality": "Best Available",
         "sp_stream": "MP3 Audio (.mp3)",

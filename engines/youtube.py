@@ -63,6 +63,43 @@ class YouTubeEngine(BaseDownloadEngine):
         "WAV Audio (.wav)": ("audio", "wav"),
     }
 
+    # Transcript language picker (UI label -> yt-dlp language code).
+    # "All languages" keeps the bulk behavior; anything unrecognized
+    # (stale settings, raw API input) falls back to English so one bad
+    # value can never inject a regex into the yt-dlp command line.
+    LANG_MAP = {
+        "English": "en",
+        "Spanish": "es",
+        "Hindi": "hi",
+        "Arabic": "ar",
+        "French": "fr",
+        "German": "de",
+        "Portuguese": "pt",
+        "Russian": "ru",
+        "Japanese": "ja",
+        "Korean": "ko",
+        "Italian": "it",
+        "Dutch": "nl",
+        "Turkish": "tr",
+        "Indonesian": "id",
+        "Bengali": "bn",
+        "Urdu": "ur",
+        "Vietnamese": "vi",
+        "Chinese": "zh",
+        "All languages": "all",
+    }
+    # Bare codes accepted from older settings.json / raw API calls.
+    ALLOWED_LANGS = tuple(LANG_MAP) + tuple(sorted(set(LANG_MAP.values())))
+
+    def _sub_lang_spec(self, lang: str) -> str:
+        label = (lang or "").strip()
+        code = self.LANG_MAP.get(label, label.lower())
+        if code not in self.LANG_MAP.values():
+            code = "en"
+        if code == "all":
+            return "all,-live_chat"
+        return code
+
     def build_command(
         self,
         url: str,
@@ -110,23 +147,41 @@ class YouTubeEngine(BaseDownloadEngine):
             # 2. Performance: Multi-connection concurrent fragment downloading
             if concurrent_fragments > 1:
                 cmd.extend(["--concurrent-fragments", str(concurrent_fragments)])
-            if kind == "remux" and ffmpeg:
+            # Always honor an explicit remux request: yt-dlp resolves ffmpeg
+            # via --ffmpeg-location (above) or PATH, and fails loudly when it
+            # is truly missing instead of silently shipping another file.
+            if kind == "remux":
                 cmd.extend(["--remux-video", codec])
 
         # 3. FFmpeg integration
         if ffmpeg:
             cmd.extend(["--ffmpeg-location", ffmpeg])
 
-        # 4. Subtitles / Transcripts
+        # Transcript-only implies subtitles: --skip-download with no subs
+        # requested would otherwise be a silent no-op run.
+        if transcript_only:
+            capture_subs = True
+
+        # 4. Subtitles / Transcripts — user-picked language (default English
+        # yields exactly 2 files: video + one transcript). "All languages"
+        # pulls every manual + auto track; `-live_chat` is always excluded
+        # (huge JSON dumps on past streams, not real subtitles).
         if capture_subs:
             sub_ext = self.CAPTION_EXT_MAP.get(caption_env, "srt")
-            clean_lang = lang.strip() or "en"
-            sub_lang_spec = f"{clean_lang}.*,{clean_lang}" if clean_lang == "en" else clean_lang
+            sub_fmt = "/".join(dict.fromkeys([sub_ext, "vtt", "srt", "best"]))
             cmd.extend([
                 "--write-subs",
                 "--write-auto-subs",
-                "--sub-langs", sub_lang_spec,
-                "--sub-format", "best",
+                "--sub-langs", self._sub_lang_spec(lang),
+                "--sub-format", sub_fmt,
+                # Subs are postprocessing, the media is the payload: never
+                # let a dead subtitle track kill the video (--ignore-errors
+                # keeps the run going; the ERROR line stays in the log).
+                # No sleep flags: they stall every playlist with seconds of
+                # idle time per file; plain retries recover just as well.
+                "--retries", "10",
+                "--extractor-retries", "5",
+                "--ignore-errors",
             ])
             if ffmpeg:
                 cmd.extend(["--convert-subs", sub_ext])

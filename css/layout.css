@@ -66,6 +66,20 @@
   border-radius: 50%;
 }
 
+.status-pip.is-busy {
+  background-color: var(--color-action-blue);
+  animation: pip-pulse 1s ease-in-out infinite;
+}
+
+.status-pip.is-fail {
+  background-color: #dc2626;
+}
+
+@keyframes pip-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+
 .app-layout {
   display: grid;
   grid-template-columns: 1.15fr 0.85fr;

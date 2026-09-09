@@ -1,0 +1,13 @@
+# Source ranges for `pip-compile` (pip-tools).
+# Pinned output lives in requirements.txt — edit here, then re-pin.
+flask>=3.0.0
+yt-dlp>=2024.8.6
+spotdl>=4.2.8
+spotapi>=0.1.0
+spotipyfree>=0.1.0
+pymongo>=4.0.0
+ytmusicapi>=1.12.0
+syncedlyrics>=1.0.0
+imageio-ffmpeg>=0.5.0
+pyinstaller>=6.4.0
+pytest>=8.0.0

@@ -76,6 +76,7 @@ function restoreControls(data) {
   refreshQualityOptions();
   textSelect('select-quality', data.yt_stream);
   textSelect('select-caption', data.yt_caption_env);
+  textSelect('select-transcript-lang', data.yt_lang);
   textSelect('select-format', data.sp_stream);
   textSelect('select-bitrate', data.sp_bitrate);
   chk('chk-transcript', data.yt_capture_subs);
@@ -98,11 +99,13 @@ function initControlSync() {
   });
   on('select-quality', 'change', () => saveConfig({ yt_stream: selText('select-quality') }));
   on('select-caption', 'change', () => saveConfig({ yt_caption_env: selText('select-caption') }));
+  on('select-transcript-lang', 'change', () => saveConfig({ yt_lang: selText('select-transcript-lang') }));
   on('select-format', 'change', () => saveConfig({ sp_stream: selText('select-format') }));
   on('select-bitrate', 'change', () => saveConfig({ sp_bitrate: selText('select-bitrate') }));
   on('chk-transcript', 'change', () => {
     saveConfig({ yt_capture_subs: document.getElementById('chk-transcript').checked });
   });
+
   on('chk-lyrics', 'change', () => {
     saveConfig({ sp_generate_lrc: document.getElementById('chk-lyrics').checked });
   });
@@ -178,6 +181,9 @@ function renderModeUI(nextMode) {
 
   if (elModeYt) elModeYt.classList.toggle('active', nextMode === 'youtube');
   if (elModeSp) elModeSp.classList.toggle('active', nextMode === 'spotify');
+  if (elModeYt) elModeYt.setAttribute('aria-selected', String(nextMode === 'youtube'));
+  if (elModeSp) elModeSp.setAttribute('aria-selected', String(nextMode === 'spotify'));
+  document.title = nextMode === 'youtube' ? 'StreamRip Core \u00b7 Video & Captions' : 'StreamRip Core \u00b7 Music & Lyrics';
 
   if (elHint) {
     elHint.textContent = nextMode === 'youtube' ? 'youtube / playlists' : 'spotify / albums / tracks';

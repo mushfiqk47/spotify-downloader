@@ -21,12 +21,12 @@
       </div>
       <div class="header-actions">
         <div class="mode-toggle" role="tablist" aria-label="Source mode">
-          <button type="button" id="mode-youtube" class="active">YouTube</button>
-          <button type="button" id="mode-spotify">Spotify</button>
+          <button type="button" id="mode-youtube" class="active" role="tab" aria-selected="true">YouTube</button>
+          <button type="button" id="mode-spotify" role="tab" aria-selected="false">Spotify</button>
         </div>
         <button type="button" class="btn-update" id="btn-update">Check Updates</button>
         <div class="system-status">
-          <span class="status-pip"></span>
+          <span class="status-pip" id="status-pip"></span>
           <span id="status-label">Standby</span>
         </div>
       </div>
@@ -97,7 +97,37 @@
             </div>
           </div>
 
-          <div class="field-group span-all">
+          <div class="field-group">
+            <label class="field-label" for="select-transcript-lang">Transcript Language</label>
+            <div class="select-wrap">
+              <select id="select-transcript-lang" class="native-select">
+                <option>English</option>
+                <option>Spanish</option>
+                <option>Hindi</option>
+                <option>Arabic</option>
+                <option>French</option>
+                <option>German</option>
+                <option>Portuguese</option>
+                <option>Russian</option>
+                <option>Japanese</option>
+                <option>Korean</option>
+                <option>Italian</option>
+                <option>Dutch</option>
+                <option>Turkish</option>
+                <option>Indonesian</option>
+                <option>Bengali</option>
+                <option>Urdu</option>
+                <option>Vietnamese</option>
+                <option>Chinese</option>
+                <option>All languages</option>
+              </select>
+              <svg class="select-chevron" width="10" height="6" viewBox="0 0 10 6">
+                <path d="M1 1L5 5L9 1"/>
+              </svg>
+            </div>
+          </div>
+
+          <div class="field-group">
             <label class="field-label" for="select-file-format">File Format</label>
             <div class="select-wrap">
               <select id="select-file-format" class="native-select">
@@ -173,9 +203,10 @@
             </span>
             <span class="checkbox-meta">
               <span class="checkbox-title">Capture Transcripts & Timestamps</span>
-              <span class="checkbox-caption">Prefers manual creator subs; falls back to automated tracks.</span>
+              <span class="checkbox-caption">Saves one transcript in your chosen language next to each video.</span>
             </span>
           </label>
+
         </div>
 
         <div class="action-bottom">

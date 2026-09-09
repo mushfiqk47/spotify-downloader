@@ -79,9 +79,13 @@ class SpotifyEngine(BaseDownloadEngine):
 
     def parse_line(self, line: str) -> ProgressUpdate:
         m_downloading = self.RE_DOWNLOADING.search(line)
-        if m_downloading:
-            curr, total = m_downloading.groups()
+        m_downloaded = None if m_downloading else self.RE_DOWNLOADED.search(line)
+        m_progress = m_downloading or m_downloaded
+        if m_progress:
+            curr, total = m_progress.groups()
+            percent = round(int(curr) / int(total) * 100, 1) if int(total) > 0 else 0.0
             return ProgressUpdate(
+                percent=percent,
                 current_item=int(curr),
                 total_items=int(total),
                 raw_line=line,

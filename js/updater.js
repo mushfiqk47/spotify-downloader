@@ -26,7 +26,7 @@ async function refreshUpdates(silent) {
     }
   } catch (err) {
     elUpdate.textContent = 'Check Updates';
-    if (!silent) appendLog(`Update check failed: ${err}`, 'entry-ink');
+    if (!silent) appendLog(`Update check failed: ${err}`, 'entry-danger');
   } finally {
     elUpdate.disabled = false;
   }
@@ -59,19 +59,25 @@ async function handleUpdateClick() {
     const jobId = data.job_id;
 
     const timer = setInterval(async () => {
-      const r = await fetch(`/api/job/${jobId}`);
-      const d = await r.json();
-      (d.logs || []).forEach((l) => appendLog(l.msg, tagToClass(l.tag)));
+      try {
+        const r = await fetch(`/api/job/${jobId}`);
+        const d = await r.json();
+        (d.logs || []).forEach((l) => appendLog(l.msg, tagToClass(l.tag)));
 
-      if (d.done) {
+        if (d.done) {
+          clearInterval(timer);
+          appendLog('Upgrade finished. Re-checking...');
+          AppState.pendingUpdates = {};
+          refreshUpdates(true);
+        }
+      } catch (err) {
         clearInterval(timer);
-        appendLog('Upgrade finished. Re-checking...');
-        AppState.pendingUpdates = {};
-        refreshUpdates(true);
+        appendLog(`Upgrade poll failed: ${err}`, 'entry-danger');
+        if (elUpdate) elUpdate.disabled = false;
       }
     }, 500);
   } catch (err) {
-    appendLog(`Upgrade failed: ${err}`, 'entry-ink');
+    appendLog(`Upgrade failed: ${err}`, 'entry-danger');
     if (elUpdate) elUpdate.disabled = false;
   }
 }

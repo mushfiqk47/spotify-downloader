@@ -28,9 +28,9 @@ function appendLog(text, variant = '') {
 }
 
 function tagToClass(tag) {
-  if (tag === 'success') return 'entry-ink';
+  if (tag === 'success') return 'entry-success';
   if (tag === 'action_blue') return 'entry-blue';
-  if (tag === 'danger') return 'entry-ink';
+  if (tag === 'danger') return 'entry-danger';
   return '';
 }
 
